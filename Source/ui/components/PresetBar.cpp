@@ -2,18 +2,23 @@
 #include "../../plugin/PluginProcessor.h"
 #include "../../plugin/Presets.h"
 #include "../DriftLookAndFeel.h"
+#include <map>
+#include <vector>
 
 namespace drift {
 
 PresetBar::PresetBar(PluginProcessor& proc) : mProc(proc) {
+    // Group the dropdown by category (alphabetical) so it matches the full
+    // browser. Item IDs stay tied to the preset's bank index, so ordering of
+    // the display is independent of how presets map to programs.
     const auto& bank = getFactoryPresets();
-    juce::String lastCat;
-    for (int i = 0; i < (int)bank.size(); ++i) {
-        if (juce::String(bank[(size_t)i].category) != lastCat) {
-            lastCat = bank[(size_t)i].category;
-            mCombo.addSectionHeading(lastCat);
-        }
-        mCombo.addItem(bank[(size_t)i].name, i + 1);
+    std::map<juce::String, std::vector<int>> byCat;
+    for (int i = 0; i < (int)bank.size(); ++i)
+        byCat[juce::String(bank[(size_t)i].category)].push_back(i);
+    for (auto& [cat, idxs] : byCat) {
+        mCombo.addSectionHeading(cat);
+        for (int idx : idxs)
+            mCombo.addItem(bank[(size_t)idx].name, idx + 1);
     }
     mCombo.setJustificationType(juce::Justification::centred);
     mCombo.setSelectedId(mProc.currentPreset + 1, juce::dontSendNotification);
@@ -21,11 +26,13 @@ PresetBar::PresetBar(PluginProcessor& proc) : mProc(proc) {
         const int id = mCombo.getSelectedId();
         if (id > 0) mProc.loadFactoryPreset(id - 1);
     };
+    mCombo.onDoubleClick = [this] { if (onBrowseRequested) onBrowseRequested(); };
     addAndMakeVisible(mCombo);
 
     mPrev.onClick = [this] { load(mProc.currentPreset - 1); };
     mNext.onClick = [this] { load(mProc.currentPreset + 1); };
-    for (auto* b : { &mPrev, &mNext }) {
+    mBrowse.onClick = [this] { if (onBrowseRequested) onBrowseRequested(); };
+    for (auto* b : { &mPrev, &mNext, &mBrowse }) {
         b->setColour(juce::TextButton::buttonColourId, Colours::PanelBright);
         b->setColour(juce::TextButton::textColourOffId, Colours::Accent);
         addAndMakeVisible(b);
@@ -51,29 +58,46 @@ void PresetBar::timerCallback() {
 }
 
 void PresetBar::paint(juce::Graphics& g) {
-    // Brand mark
-    g.setColour(Colours::TextBright);
-    g.setFont(juce::Font(juce::FontOptions{}.withHeight(26.0f).withStyle("Bold")));
-    g.drawText("DRIFT", getLocalBounds().withTrimmedLeft(14).removeFromLeft(140),
-               juce::Justification::centredLeft);
-    g.setColour(Colours::Accent);
-    g.setFont(juce::Font(juce::FontOptions{}.withHeight(9.0f)));
-    g.drawText("DREAM SYNTHESIZER", getLocalBounds().withTrimmedLeft(15).withTrimmedTop(30).removeFromLeft(160),
-               juce::Justification::topLeft);
+    const int bx = 16;
+    juce::Rectangle<int> driftR(bx, 2, 210, 40);
+
+    // Marker-style brand. "Ink Free" is Windows' built-in felt-tip marker face;
+    // it gives the logo that loose, hand-drawn racing-decal feel.
+    juce::Font marker(juce::FontOptions{}.withName("Ink Free").withHeight(38.0f).withStyle("Bold"));
+    g.setFont(marker);
+
+    // Drop shadow for depth.
+    g.setColour(juce::Colours::black.withAlpha(0.45f));
+    g.drawText("Drift", driftR.translated(2, 2), juce::Justification::centredLeft);
+
+    // Gradient fill (cyan → violet → pink) across the word.
+    juce::ColourGradient grad(Colours::Accent2, (float)bx, 0.0f,
+                              Colours::Glow, (float)bx + 150.0f, 0.0f, false);
+    grad.addColour(0.5, Colours::Accent);
+    g.setGradientFill(grad);
+    g.drawText("Drift", driftR, juce::Justification::centredLeft);
+
+    // Subtitle, clearly below the logo (letter-spaced for a refined look).
+    g.setColour(Colours::TextMid);
+    g.setFont(juce::Font(juce::FontOptions{}.withHeight(9.5f).withStyle("Bold")));
+    g.drawText("D R E A M   S Y N T H E S I Z E R",
+               bx + 3, 43, 240, 12, juce::Justification::topLeft);
 }
 
 void PresetBar::resized() {
     auto b = getLocalBounds().reduced(10, 12);
     b.removeFromLeft(160);                       // brand area
-    auto browser = b.removeFromLeft(juce::jmin(360, b.getWidth())).withSizeKeepingCentre(
-        juce::jmin(360, b.getWidth()), 28);
-    // centre the browser group within the bar
-    browser.setX(getWidth() / 2 - browser.getWidth() / 2);
-    mPrev.setBounds(browser.removeFromLeft(30));
-    browser.removeFromLeft(4);
-    mNext.setBounds(browser.removeFromRight(30));
-    browser.removeFromRight(4);
-    mCombo.setBounds(browser);
+    const int groupW = juce::jmin(420, b.getWidth());
+    auto group = b.withSizeKeepingCentre(groupW, 28);
+    group.setX(getWidth() / 2 - groupW / 2);     // centre the group within the bar
+
+    mPrev.setBounds(group.removeFromLeft(30));
+    group.removeFromLeft(4);
+    mBrowse.setBounds(group.removeFromRight(36)); // ☰ full library
+    group.removeFromRight(4);
+    mNext.setBounds(group.removeFromRight(30));
+    group.removeFromRight(4);
+    mCombo.setBounds(group);
 }
 
 } // namespace drift

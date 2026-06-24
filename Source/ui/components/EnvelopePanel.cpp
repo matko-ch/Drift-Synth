@@ -28,13 +28,14 @@ EnvelopePanel::EnvelopePanel(juce::AudioProcessorValueTreeState& apvts, int envT
 }
 
 void EnvelopePanel::resized() {
-    const auto b = getLocalBounds().reduced(6, 18);
+    const auto b = getLocalBounds().reduced(8, 20);
     KnobComponent* knobs[6] = { &mAttack, &mHold, &mDecay, &mSustain, &mRelease, &mCurve };
     const int n = 6;
-    const int kw = std::max(1, (b.getWidth() - (n - 1) * 3) / n);
+    const int gap = 6;
+    const int kw = std::max(1, (b.getWidth() - (n - 1) * gap) / n);
     const int kh = b.getHeight();
     for (int i = 0; i < n; ++i)
-        knobs[i]->setBounds(b.getX() + i * (kw + 3), b.getY(), kw, kh);
+        knobs[i]->setBounds(b.getX() + i * (kw + gap), b.getY(), kw, kh);
 }
 
 void EnvelopePanel::paint(juce::Graphics& g) {

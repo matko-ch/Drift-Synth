@@ -13,7 +13,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
-    static constexpr int kNumFaders = 7;
+    static constexpr int kNumFaders = 8;
 
 private:
     std::array<juce::Slider, kNumFaders> mFaders;

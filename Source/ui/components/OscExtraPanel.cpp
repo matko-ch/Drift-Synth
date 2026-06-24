@@ -33,12 +33,13 @@ OscExtraPanel::OscExtraPanel(juce::AudioProcessorValueTreeState& apvts) {
 }
 
 void OscExtraPanel::resized() {
-    auto b = getLocalBounds().reduced(8, 18);
-    const int kw = 48, kh = 58;
+    auto b = getLocalBounds().reduced(8, 20);
+    const int kh = 60, kg = 8;
+    const int kw = std::max(1, (b.getWidth() - 3 * kg) / 4);
     auto knobs = b.removeFromTop(kh);
-    mFM   .setBounds(knobs.removeFromLeft(kw)); knobs.removeFromLeft(2);
-    mRing .setBounds(knobs.removeFromLeft(kw)); knobs.removeFromLeft(2);
-    mNoise.setBounds(knobs.removeFromLeft(kw)); knobs.removeFromLeft(2);
+    mFM   .setBounds(knobs.removeFromLeft(kw)); knobs.removeFromLeft(kg);
+    mRing .setBounds(knobs.removeFromLeft(kw)); knobs.removeFromLeft(kg);
+    mNoise.setBounds(knobs.removeFromLeft(kw)); knobs.removeFromLeft(kg);
     mSub  .setBounds(knobs.removeFromLeft(kw));
 
     b.removeFromTop(6);

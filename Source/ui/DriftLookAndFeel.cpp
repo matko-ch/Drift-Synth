@@ -35,7 +35,9 @@ void DriftLookAndFeel::drawRotarySlider(juce::Graphics& g,
 {
     const float cx = x + w * 0.5f;
     const float cy = y + h * 0.5f;
-    const float radius = (std::min(w, h) * 0.5f) - 4.0f;
+    // Generous inset so the arc/track never touches the component edge — this
+    // stops knobs from looking clipped at the top or kissing their neighbours.
+    const float radius = (std::min(w, h) * 0.5f) - 8.0f;
     if (radius <= 0.0f) return;
 
     const float angle = startAngle + sliderPos * (endAngle - startAngle);
@@ -177,7 +179,9 @@ void DriftLookAndFeel::drawComboBox(juce::Graphics& g,
 }
 
 void DriftLookAndFeel::positionComboBoxText(juce::ComboBox& cb, juce::Label& label) {
-    label.setBounds(4, 1, cb.getWidth() - 22, cb.getHeight() - 2);
+    // Reserve only a slim arrow gutter so short values ("0", "+1") aren't
+    // ellipsised to "..." in narrow combos.
+    label.setBounds(3, 1, cb.getWidth() - 15, cb.getHeight() - 2);
     label.setFont(mFontRegular.withHeight(11.0f));
 }
 

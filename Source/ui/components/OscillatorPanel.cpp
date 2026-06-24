@@ -66,22 +66,23 @@ void OscillatorPanel::resized() {
     const int kw = 48, kh = 58;
 
     // Top row: Shape combo + Octave combo
-    const int cbH = 22, cbW = 70;
+    const int cbH = 22, cbW = 72, octW = 50;
     mShapeLabel.setBounds(b.getX(), b.getY(), cbW, 14);
     mShapeCB.setBounds(b.getX(), b.getY() + 14, cbW, cbH);
-    mOctaveLabel.setBounds(b.getX() + cbW + 6, b.getY(), 36, 14);
-    mOctaveCB.setBounds(b.getX() + cbW + 6, b.getY() + 14, 36, cbH);
+    mOctaveLabel.setBounds(b.getX() + cbW + 10, b.getY(), octW, 14);
+    mOctaveCB.setBounds(b.getX() + cbW + 10, b.getY() + 14, octW, cbH);
 
     // Sync button (Osc2 only)
     if (mOscIndex == 2)
-        mSyncBtn.setBounds(b.getRight() - 36, b.getY() + 10, 36, 20);
+        mSyncBtn.setBounds(b.getRight() - 38, b.getY() + 10, 38, 20);
 
-    // Knob row
-    const int kY = b.getY() + cbH + 20;
-    mFineKnob .setBounds(b.getX() + 0*(kw+4), kY, kw, kh);
-    mLevelKnob.setBounds(b.getX() + 1*(kw+4), kY, kw, kh);
-    mPWKnob   .setBounds(b.getX() + 2*(kw+4), kY, kw, kh);
-    mPanKnob  .setBounds(b.getX() + 3*(kw+4), kY, kw, kh);
+    // Knob row (extra horizontal gap so neighbours don't kiss)
+    const int kg = 8;
+    const int kY = b.getY() + cbH + 22;
+    mFineKnob .setBounds(b.getX() + 0*(kw+kg), kY, kw, kh);
+    mLevelKnob.setBounds(b.getX() + 1*(kw+kg), kY, kw, kh);
+    mPWKnob   .setBounds(b.getX() + 2*(kw+kg), kY, kw, kh);
+    mPanKnob  .setBounds(b.getX() + 3*(kw+kg), kY, kw, kh);
 }
 
 } // namespace drift

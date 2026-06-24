@@ -42,18 +42,20 @@ FilterPanel::FilterPanel(juce::AudioProcessorValueTreeState& apvts, int filterIn
 }
 
 void FilterPanel::resized() {
-    const auto b = getLocalBounds().reduced(8, 18);
-    const int kw = 44, kh = 54;
+    const auto b = getLocalBounds().reduced(8, 20);
+    const int kg = 8;
+    const int kh = 56;
+    const int kw = std::max(1, (b.getWidth() - 4 * kg) / 5);
 
     mTypeLabel.setBounds(b.getX(), b.getY(), 70, 14);
-    mTypeCB.setBounds(b.getX(), b.getY() + 14, 80, 22);
+    mTypeCB.setBounds(b.getX(), b.getY() + 14, 90, 22);
 
-    const int kY = b.getY() + 44;
-    mCutoffKnob.setBounds(b.getX() + 0*(kw+4), kY, kw, kh);
-    mResKnob   .setBounds(b.getX() + 1*(kw+4), kY, kw, kh);
-    mDriveKnob .setBounds(b.getX() + 2*(kw+4), kY, kw, kh);
-    mEnvKnob   .setBounds(b.getX() + 3*(kw+4), kY, kw, kh);
-    mKeyTrkKnob.setBounds(b.getX() + 4*(kw+4), kY, kw, kh);
+    const int kY = b.getY() + 46;
+    mCutoffKnob.setBounds(b.getX() + 0*(kw+kg), kY, kw, kh);
+    mResKnob   .setBounds(b.getX() + 1*(kw+kg), kY, kw, kh);
+    mDriveKnob .setBounds(b.getX() + 2*(kw+kg), kY, kw, kh);
+    mEnvKnob   .setBounds(b.getX() + 3*(kw+kg), kY, kw, kh);
+    mKeyTrkKnob.setBounds(b.getX() + 4*(kw+kg), kY, kw, kh);
 }
 
 } // namespace drift

@@ -6,8 +6,9 @@ namespace drift {
 // ── Drift colour palette (cosmic / dreamy nebula) ────────────────────────────
 namespace Colours {
     inline const auto Background  = juce::Colour(0xFF0E0B1Eu);  // deep space indigo
-    inline const auto BgTop       = juce::Colour(0xFF1A1440u);  // gradient top
-    inline const auto BgBottom    = juce::Colour(0xFF0A0817u);  // gradient bottom
+    inline const auto BgTop       = juce::Colour(0xFF16204Fu);  // deep blue
+    inline const auto BgMid       = juce::Colour(0xFF2A1558u);  // indigo-purple
+    inline const auto BgBottom    = juce::Colour(0xFF3C1247u);  // deep purple / magenta
     inline const auto Panel       = juce::Colour(0xFF1A1638u);
     inline const auto PanelBright = juce::Colour(0xFF262148u);
     inline const auto Accent      = juce::Colour(0xFF9D7BFFu);  // pastel violet

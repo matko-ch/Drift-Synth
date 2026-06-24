@@ -15,6 +15,7 @@ PluginEditor::PluginEditor(PluginProcessor& proc)
     , mStrip(proc.apvts)
     , mPerform(proc.apvts)
     , mAdvanced(proc.apvts)
+    , mBrowser(proc)
     , mKeyboard(proc.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
     setLookAndFeel(&DriftLookAndFeel::instance());
@@ -43,6 +44,14 @@ PluginEditor::PluginEditor(PluginProcessor& proc)
     mAdvViewport.setViewedComponent(&mAdvanced, false);
     mAdvViewport.setScrollBarsShown(true, false);
     addChildComponent(mAdvViewport);
+
+    // Full-library browser (opened by double-clicking the preset dropdown).
+    addChildComponent(mBrowser);
+    mPresetBar.onBrowseRequested = [this] {
+        mBrowser.setBounds(getLocalBounds());
+        mBrowser.show();
+    };
+    mBrowser.onClose = [this] { mBrowser.setVisible(false); };
 
     // Keyboard: full 88-key range available; how many octaves show is driven by
     // the window width (MidiKeyboardComponent fills its bounds from the lowest
@@ -82,6 +91,8 @@ void PluginEditor::updateView() {
 }
 
 void PluginEditor::resized() {
+    mBrowser.setBounds(getLocalBounds());   // overlay covers everything when shown
+
     auto full = getLocalBounds();
 
     // ── Top bar ─────────────────────────────────────────────────────────────────
@@ -116,7 +127,7 @@ void PluginEditor::resized() {
         mAdvanced.setSize(area.getWidth() - 14, AdvancedPanel::kContentHeight);
     } else {
         const int pad = 10;
-        auto vibe = area.removeFromRight(juce::jmax(290, area.getWidth() * 28 / 100));
+        auto vibe = area.removeFromRight(juce::jmax(330, area.getWidth() * 30 / 100));
         mVibe.setBounds(vibe);
         area.removeFromRight(pad);
 
@@ -130,22 +141,23 @@ void PluginEditor::resized() {
 }
 
 void PluginEditor::paint(juce::Graphics& g) {
-    // Nebula gradient background
+    // Diagonal nebula gradient: deep blue (top-left) → indigo → purple/magenta.
     juce::ColourGradient bg(Colours::BgTop, 0.0f, 0.0f,
-                            Colours::BgBottom, 0.0f, (float)getHeight(), false);
-    bg.addColour(0.5, Colours::Background);
+                            Colours::BgBottom, (float)getWidth(), (float)getHeight(), false);
+    bg.addColour(0.45, Colours::BgMid);
+    bg.addColour(0.80, Colours::Background);
     g.setGradientFill(bg);
     g.fillAll();
 
-    // Soft nebula blooms
-    auto bloom = [&](float cx, float cy, float r, juce::Colour c) {
-        g.setGradientFill(juce::ColourGradient(c.withAlpha(0.10f), cx, cy,
+    // Soft nebula blooms (radial colour washes for depth)
+    auto bloom = [&](float cx, float cy, float r, juce::Colour c, float a) {
+        g.setGradientFill(juce::ColourGradient(c.withAlpha(a), cx, cy,
                                                juce::Colours::transparentBlack, cx, cy - r, true));
         g.fillEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f);
     };
-    bloom(getWidth() * 0.18f, getHeight() * 0.30f, 280.0f, Colours::Accent);
-    bloom(getWidth() * 0.80f, getHeight() * 0.22f, 240.0f, Colours::Accent2);
-    bloom(getWidth() * 0.55f, getHeight() * 0.70f, 260.0f, Colours::Glow);
+    bloom(getWidth() * 0.14f, getHeight() * 0.26f, 320.0f, Colours::Accent2, 0.12f); // cyan-blue, upper left
+    bloom(getWidth() * 0.86f, getHeight() * 0.30f, 300.0f, Colours::Accent,  0.13f); // violet, upper right
+    bloom(getWidth() * 0.62f, getHeight() * 0.85f, 360.0f, Colours::Glow,    0.14f); // pink, lower
 
     // Top-bar separator
     g.setColour(Colours::Separator);

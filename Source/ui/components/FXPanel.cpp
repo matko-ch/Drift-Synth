@@ -38,15 +38,16 @@ void EffectSection::paint(juce::Graphics& g) {
 }
 
 void EffectSection::resized() {
-    const auto b = getLocalBounds().reduced(4).withTrimmedTop(16);
-    mOnBtn.setBounds(b.getX() + (b.getWidth() - 32) / 2, b.getY(), 32, 18);
+    const auto b = getLocalBounds().reduced(5).withTrimmedTop(16);
+    mOnBtn.setBounds(b.getX() + (b.getWidth() - 34) / 2, b.getY(), 34, 18);
 
-    const int kw = (b.getWidth() - 8) / 3;
+    const int kg = 6;
+    const int kw = (b.getWidth() - 2 * kg) / 3;
     const int kY = b.getY() + 24;
-    const int kh = b.getHeight() - 24;
-    mKnob1.setBounds(b.getX() + 0*(kw+4), kY, kw, kh);
-    mKnob2.setBounds(b.getX() + 1*(kw+4), kY, kw, kh);
-    mKnob3.setBounds(b.getX() + 2*(kw+4), kY, kw, kh);
+    const int kh = b.getHeight() - 26;
+    mKnob1.setBounds(b.getX() + 0*(kw+kg), kY, kw, kh);
+    mKnob2.setBounds(b.getX() + 1*(kw+kg), kY, kw, kh);
+    mKnob3.setBounds(b.getX() + 2*(kw+kg), kY, kw, kh);
 }
 
 // ── FXPanel ───────────────────────────────────────────────────────────────────

@@ -213,7 +213,9 @@ void PluginProcessor::syncPatchFromParams() noexcept {
 
     // Master
     p.masterPitch = f(MASTER_TUNE) * (1.0f / 100.0f); // cents → semitones
-    p.glideTime   = b(GLIDE_ON) ? f(GLIDE_TIME) : 0.0f;
+    // Glide is active from the Vibe Glide fader (time > 0), or forced by the
+    // Advanced Glide toggle (which applies a sensible default time).
+    p.glideTime   = std::max(f(GLIDE_TIME), b(GLIDE_ON) ? 0.05f : 0.0f);
 
     mPitchBendRange = f(PITCH_BEND_RANGE);
     mVoiceManager.setMaxVoices(i(POLY_VOICES));

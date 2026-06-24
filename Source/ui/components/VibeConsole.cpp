@@ -15,6 +15,7 @@ const Def kDefs[VibeConsole::kNumFaders] = {
     { ParamID::VIBE_GRIT,  "GRIT",   Colours::Red     },
     { ParamID::VIBE_WIDE,  "WIDTH",  Colours::Green   },
     { ParamID::VIBE_FOCUS, "FOCUS",  Colours::Accent  },
+    { ParamID::GLIDE_TIME, "GLIDE",  Colours::Accent2 },
 };
 }
 

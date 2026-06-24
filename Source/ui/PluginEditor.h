@@ -9,6 +9,7 @@
 #include "components/SynthStrip.h"
 #include "components/PerformBar.h"
 #include "components/AdvancedPanel.h"
+#include "components/PresetBrowser.h"
 #include "components/KnobComponent.h"
 
 namespace drift {
@@ -39,6 +40,8 @@ private:
     juce::Viewport mAdvViewport;
     AdvancedPanel  mAdvanced;
     juce::TextButton mAdvToggle { "ADVANCED" };
+
+    PresetBrowser  mBrowser;
 
     KnobComponent  mMasterVol { "VOL" };
     juce::MidiKeyboardComponent mKeyboard;

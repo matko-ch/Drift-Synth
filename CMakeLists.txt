@@ -61,6 +61,8 @@ target_sources(Drift PRIVATE
     Source/ui/components/KnobComponent.h
     Source/ui/components/PresetBar.cpp
     Source/ui/components/PresetBar.h
+    Source/ui/components/PresetBrowser.cpp
+    Source/ui/components/PresetBrowser.h
     Source/ui/components/DriftFieldPad.cpp
     Source/ui/components/DriftFieldPad.h
     Source/ui/components/OrbitPanel.cpp

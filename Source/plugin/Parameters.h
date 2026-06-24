@@ -393,7 +393,8 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addFloat(ParamID::MASTER_VOL,   "Master Vol",   0.0f, 1.0f, 0.8f);
     addFloat(ParamID::MASTER_TUNE,  "Master Tune",  -100.0f, 100.0f, 0.0f);
     addInt  (ParamID::POLY_VOICES,  "Poly Voices",  1, kMaxVoices, 8);
-    addFloat(ParamID::GLIDE_TIME,   "Glide Time",   0.001f, 1.0f, 0.05f);
+    // Glide time 0 = off (also controllable from the Vibe console's Glide fader).
+    addFloat(ParamID::GLIDE_TIME,   "Glide Time",   0.0f, 1.0f, 0.0f);
     addBool (ParamID::GLIDE_ON,     "Glide On",     false);
     addFloat(ParamID::PITCH_BEND_RANGE, "PB Range", 1.0f, 24.0f, 2.0f);
 

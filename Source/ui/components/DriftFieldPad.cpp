@@ -35,10 +35,11 @@ void DriftFieldPad::paint(juce::Graphics& g) {
     const auto a = padArea();
 
     // ── Backplate ───────────────────────────────────────────────────────────────
+    const float corner = 20.0f;
     g.setColour(Colours::Panel);
-    g.fillRoundedRectangle(a, 10.0f);
+    g.fillRoundedRectangle(a, corner);
 
-    // ── Corner nebula glows (the four scenes) ───────────────────────────────────
+    // ── Corner nebula glows (the four scenes), clipped to the rounded plate ─────
     struct Corner { juce::Point<float> p; juce::Colour c; juce::String label; juce::Justification j; };
     const Corner corners[] = {
         { a.getBottomLeft(),  Colours::Glow,    "VELVET", juce::Justification::bottomLeft },
@@ -46,18 +47,24 @@ void DriftFieldPad::paint(juce::Graphics& g) {
         { a.getTopLeft(),     Colours::Accent2, "GLASS",  juce::Justification::topLeft },
         { a.getTopRight(),    Colours::Accent,  "HOLLOW", juce::Justification::topRight },
     };
-    const float gr = juce::jmin(a.getWidth(), a.getHeight()) * 0.85f;
-    for (auto& c : corners) {
-        g.setGradientFill(juce::ColourGradient(c.c.withAlpha(0.38f), c.p.x, c.p.y,
-                                               juce::Colours::transparentBlack,
-                                               c.p.x + (c.p.x < a.getCentreX() ? gr : -gr),
-                                               c.p.y + (c.p.y < a.getCentreY() ? gr : -gr), true));
-        g.fillRect(a);
+    {
+        juce::Graphics::ScopedSaveState save(g);  // confine the clip to the glows
+        juce::Path clip;
+        clip.addRoundedRectangle(a, corner);
+        g.reduceClipRegion(clip);
+        const float gr = juce::jmin(a.getWidth(), a.getHeight()) * 0.85f;
+        for (auto& c : corners) {
+            g.setGradientFill(juce::ColourGradient(c.c.withAlpha(0.38f), c.p.x, c.p.y,
+                                                   juce::Colours::transparentBlack,
+                                                   c.p.x + (c.p.x < a.getCentreX() ? gr : -gr),
+                                                   c.p.y + (c.p.y < a.getCentreY() ? gr : -gr), true));
+            g.fillRect(a);
+        }
     }
 
     // ── Frame + grid crosshair ──────────────────────────────────────────────────
     g.setColour(Colours::Separator);
-    g.drawRoundedRectangle(a.reduced(0.5f), 10.0f, 1.2f);
+    g.drawRoundedRectangle(a.reduced(0.5f), corner, 1.2f);
     g.setColour(Colours::Separator.withAlpha(0.5f));
     g.drawVerticalLine((int)a.getCentreX(), a.getY(), a.getBottom());
     g.drawHorizontalLine((int)a.getCentreY(), a.getX(), a.getRight());
@@ -66,7 +73,7 @@ void DriftFieldPad::paint(juce::Graphics& g) {
     g.setFont(juce::Font(juce::FontOptions{}.withHeight(11.0f).withStyle("Bold")));
     for (auto& c : corners) {
         g.setColour(c.c.withAlpha(0.85f));
-        g.drawText(c.label, a.reduced(8.0f), c.j);
+        g.drawText(c.label, a.reduced(16.0f), c.j);
     }
 
     // ── Puck ────────────────────────────────────────────────────────────────────
