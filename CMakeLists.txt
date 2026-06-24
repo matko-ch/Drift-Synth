@@ -150,9 +150,13 @@ target_link_libraries(Drift
         juce::juce_gui_extra
     PUBLIC
         juce::juce_recommended_config_flags
-        juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags
 )
+# NOTE: juce_recommended_lto_flags is intentionally omitted. Link-Time
+# Optimization rewrites the whole binary into dense, opaque machine code whose
+# shape changes as the codebase grows; cloud antivirus/SmartScreen heuristics
+# repeatedly false-positive on such output. Dropping LTO keeps the binary
+# functionally identical while making it look like ordinary compiled code.
 
 # ── Tests ──────────────────────────────────────────────────────────────────────
 add_subdirectory(tests)
