@@ -4,6 +4,7 @@
 #include "../dsp/Filter.h"
 #include "../dsp/LFO.h"
 #include "../dsp/ModMatrix.h"
+#include "../dsp/Chords.h"
 
 namespace drift {
 
@@ -31,6 +32,14 @@ inline constexpr auto OSC2_SYNC     = "osc2_sync";
 // Mix
 inline constexpr auto OSC_MIX       = "osc_mix";
 
+// Oscillator extras (more sonic range)
+inline constexpr auto OSC_FM     = "osc_fm";     // osc2 → osc1 frequency mod
+inline constexpr auto OSC_RING   = "osc_ring";   // ring modulation blend
+inline constexpr auto OSC_NOISE  = "osc_noise";  // white-noise layer
+inline constexpr auto SUB_LEVEL  = "sub_level";
+inline constexpr auto SUB_SHAPE  = "sub_shape";
+inline constexpr auto SUB_OCTAVE = "sub_octave"; // -2 or -1
+
 // Unison
 inline constexpr auto UNISON_VOICES  = "unison_voices";
 inline constexpr auto UNISON_DETUNE  = "unison_detune";
@@ -54,23 +63,29 @@ inline constexpr auto FILT2_KEYTRACK = "filt2_keytrack";
 
 inline constexpr auto FILT_ROUTING   = "filt_routing";  // 0=serial, 1=parallel
 
-// Amp Envelope
+// Amp Envelope (DAHDSR + curve)
 inline constexpr auto AMPENV_A = "ampenv_a";
+inline constexpr auto AMPENV_H = "ampenv_h";
 inline constexpr auto AMPENV_D = "ampenv_d";
 inline constexpr auto AMPENV_S = "ampenv_s";
 inline constexpr auto AMPENV_R = "ampenv_r";
+inline constexpr auto AMPENV_CURVE = "ampenv_curve";
 
 // Filter Envelope
 inline constexpr auto FILTENV_A = "filtenv_a";
+inline constexpr auto FILTENV_H = "filtenv_h";
 inline constexpr auto FILTENV_D = "filtenv_d";
 inline constexpr auto FILTENV_S = "filtenv_s";
 inline constexpr auto FILTENV_R = "filtenv_r";
+inline constexpr auto FILTENV_CURVE = "filtenv_curve";
 
 // Mod Envelope
 inline constexpr auto MODENV_A = "modenv_a";
+inline constexpr auto MODENV_H = "modenv_h";
 inline constexpr auto MODENV_D = "modenv_d";
 inline constexpr auto MODENV_S = "modenv_s";
 inline constexpr auto MODENV_R = "modenv_r";
+inline constexpr auto MODENV_CURVE = "modenv_curve";
 
 // LFO 1
 inline constexpr auto LFO1_SHAPE   = "lfo1_shape";
@@ -119,6 +134,21 @@ inline constexpr auto REVERB_SIZE  = "reverb_size";
 inline constexpr auto REVERB_DAMP  = "reverb_damp";
 inline constexpr auto REVERB_MIX   = "reverb_mix";
 
+inline constexpr auto EQ_ON        = "eq_on";
+inline constexpr auto EQ_LOW       = "eq_low";
+inline constexpr auto EQ_MID       = "eq_mid";
+inline constexpr auto EQ_HIGH      = "eq_high";
+
+inline constexpr auto PHASER_ON    = "phaser_on";
+inline constexpr auto PHASER_RATE  = "phaser_rate";
+inline constexpr auto PHASER_DEPTH = "phaser_depth";
+inline constexpr auto PHASER_MIX   = "phaser_mix";
+
+inline constexpr auto CRUSH_ON     = "crush_on";
+inline constexpr auto CRUSH_BITS   = "crush_bits";
+inline constexpr auto CRUSH_AMT    = "crush_amt";
+inline constexpr auto CRUSH_MIX    = "crush_mix";
+
 // Master
 inline constexpr auto MASTER_VOL   = "master_vol";
 inline constexpr auto MASTER_TUNE  = "master_tune";
@@ -126,6 +156,41 @@ inline constexpr auto POLY_VOICES  = "poly_voices";
 inline constexpr auto GLIDE_TIME   = "glide_time";
 inline constexpr auto GLIDE_ON     = "glide_on";
 inline constexpr auto PITCH_BEND_RANGE = "pb_range";
+
+// Character
+inline constexpr auto DRIFT_AMOUNT = "drift_amount";
+
+// Arpeggiator
+inline constexpr auto ARP_ON   = "arp_on";
+inline constexpr auto ARP_RATE = "arp_rate";
+inline constexpr auto ARP_MODE = "arp_mode";
+inline constexpr auto ARP_OCT  = "arp_oct";
+inline constexpr auto ARP_GATE = "arp_gate";
+
+// Chord mode
+inline constexpr auto CHORD_ON   = "chord_on";
+inline constexpr auto CHORD_TYPE = "chord_type";
+
+// ── Macro / creative-control layer ────────────────────────────────────────────
+// Drift Field morph pad (bilinear blend of 4 sonic "scenes")
+inline constexpr auto MORPH_X = "morph_x";
+inline constexpr auto MORPH_Y = "morph_y";
+
+// Orbit nodes — distance from centre = amount [0,1]
+inline constexpr auto ORBIT_MOTION  = "orbit_motion";
+inline constexpr auto ORBIT_SPACE   = "orbit_space";
+inline constexpr auto ORBIT_TEXTURE = "orbit_texture";
+inline constexpr auto ORBIT_DRIVE   = "orbit_drive";
+inline constexpr auto ORBIT_TONE    = "orbit_tone";
+
+// Vibe console — semantic faders [0,1]
+inline constexpr auto VIBE_DREAM = "vibe_dream";
+inline constexpr auto VIBE_WARM  = "vibe_warm";
+inline constexpr auto VIBE_AIR   = "vibe_air";
+inline constexpr auto VIBE_MOVE  = "vibe_move";
+inline constexpr auto VIBE_GRIT  = "vibe_grit";
+inline constexpr auto VIBE_WIDE  = "vibe_wide";
+inline constexpr auto VIBE_FOCUS = "vibe_focus";
 } // namespace ParamID
 
 // ── Layout factory ────────────────────────────────────────────────────────────
@@ -152,9 +217,13 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             ParameterID{id, 1}, name, lo, hi, def));
     };
 
+    // On/off switches are modelled as a 2-step integer so their value snaps
+    // cleanly to 0/1 and survives host state round-trips exactly (verified by
+    // pluginval strictness-10 "state restoration"). Button attachments treat
+    // any 0..1 parameter as a toggle, so behaviour is unchanged.
     auto addBool = [&](const char* id, const char* name, bool def) {
-        params.push_back(std::make_unique<AudioParameterBool>(
-            ParameterID{id, 1}, name, def));
+        params.push_back(std::make_unique<AudioParameterInt>(
+            ParameterID{id, 1}, name, 0, 1, def ? 1 : 0));
     };
 
     auto addChoice = [&](const char* id, const char* name,
@@ -192,10 +261,19 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addBool  (ParamID::OSC2_SYNC,  "Osc2 Sync",     false);
     addFloat (ParamID::OSC_MIX,    "Osc Mix",        0.0f, 1.0f, 0.5f);
 
+    // Oscillator extras
+    const StringArray subShapes { "Sine", "Triangle", "Square" };
+    addFloat (ParamID::OSC_FM,    "FM Amount",  0.0f, 1.0f, 0.0f);
+    addFloat (ParamID::OSC_RING,  "Ring Mod",   0.0f, 1.0f, 0.0f);
+    addFloat (ParamID::OSC_NOISE, "Noise",      0.0f, 1.0f, 0.0f);
+    addFloat (ParamID::SUB_LEVEL, "Sub",        0.0f, 1.0f, 0.0f);
+    addChoice(ParamID::SUB_SHAPE, "Sub Shape",  subShapes, 2 /*Square*/);
+    addInt   (ParamID::SUB_OCTAVE,"Sub Octave", -2, -1, -1);
+
     // Unison
-    addInt   (ParamID::UNISON_VOICES, "Unison Voices", 1, kMaxUnisonVoices, 1);
-    addFloat (ParamID::UNISON_DETUNE, "Unison Detune", 0.0f, 1.0f, 0.3f);
-    addFloat (ParamID::UNISON_SPREAD, "Unison Spread", 0.0f, 1.0f, 0.5f);
+    addInt   (ParamID::UNISON_VOICES, "Unison Voices", 1, kMaxUnisonVoices, 3);
+    addFloat (ParamID::UNISON_DETUNE, "Unison Detune", 0.0f, 1.0f, 0.28f);
+    addFloat (ParamID::UNISON_SPREAD, "Unison Spread", 0.0f, 1.0f, 0.6f);
 
     // Filter 1
     {
@@ -203,13 +281,13 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             [](float lo, float hi, float v) { return lo * std::pow(hi/lo, v); },
             [](float lo, float hi, float v) { return std::log(v/lo) / std::log(hi/lo); }};
         params.push_back(std::make_unique<AudioParameterFloat>(
-            ParameterID{ParamID::FILT1_CUTOFF, 1}, "Filt1 Cutoff", range, 8000.0f));
+            ParameterID{ParamID::FILT1_CUTOFF, 1}, "Filt1 Cutoff", range, 2800.0f));
     }
-    addFloat (ParamID::FILT1_RES,      "Filt1 Res",     0.0f, 1.0f, 0.0f);
+    addFloat (ParamID::FILT1_RES,      "Filt1 Res",     0.0f, 1.0f, 0.12f);
     addFloat (ParamID::FILT1_DRIVE,    "Filt1 Drive",   0.0f, 1.0f, 0.0f);
-    addChoice(ParamID::FILT1_TYPE,     "Filt1 Type", filtTypes, 0);
-    addFloat (ParamID::FILT1_ENV_AMT,  "Filt1 Env Amt", -1.0f, 1.0f, 0.0f);
-    addFloat (ParamID::FILT1_KEYTRACK, "Filt1 KeyTrk",   0.0f, 1.0f, 0.0f);
+    addChoice(ParamID::FILT1_TYPE,     "Filt1 Type", filtTypes, 6 /*MoogLP*/);
+    addFloat (ParamID::FILT1_ENV_AMT,  "Filt1 Env Amt", -1.0f, 1.0f, 0.35f);
+    addFloat (ParamID::FILT1_KEYTRACK, "Filt1 KeyTrk",   0.0f, 1.0f, 0.35f);
 
     // Filter 2
     {
@@ -233,24 +311,24 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
             [](float l, float h, float v) { return std::log(v/l) / std::log(h/l); }};
     };
 
-    auto addEnv = [&](const char* a, const char* d, const char* s, const char* r,
-                       const char* na, const char* nd, const char* ns, const char* nr) {
-        params.push_back(std::make_unique<AudioParameterFloat>(
-            ParameterID{a,1}, na, envRange(0.001f, 5.0f), 0.01f));
-        params.push_back(std::make_unique<AudioParameterFloat>(
-            ParameterID{d,1}, nd, envRange(0.001f, 5.0f), 0.3f));
-        params.push_back(std::make_unique<AudioParameterFloat>(
-            ParameterID{s,1}, ns, NormalisableRange<float>{0.0f,1.0f}, 0.7f));
-        params.push_back(std::make_unique<AudioParameterFloat>(
-            ParameterID{r,1}, nr, envRange(0.001f, 10.0f), 0.5f));
+    // Full DAHDSR + curve per envelope.
+    auto addEnv = [&](const char* a, const char* h, const char* d, const char* s,
+                      const char* r, const char* curve, const juce::String& pfx,
+                      float defA, float defD, float defS, float defR) {
+        params.push_back(std::make_unique<AudioParameterFloat>(ParameterID{a,1}, pfx+" Atk",  envRange(0.001f, 5.0f), defA));
+        params.push_back(std::make_unique<AudioParameterFloat>(ParameterID{h,1}, pfx+" Hold", NormalisableRange<float>{0.0f, 2.0f}, 0.0f));
+        params.push_back(std::make_unique<AudioParameterFloat>(ParameterID{d,1}, pfx+" Dec",  envRange(0.001f, 5.0f), defD));
+        params.push_back(std::make_unique<AudioParameterFloat>(ParameterID{s,1}, pfx+" Sus",  NormalisableRange<float>{0.0f, 1.0f}, defS));
+        params.push_back(std::make_unique<AudioParameterFloat>(ParameterID{r,1}, pfx+" Rel",  envRange(0.001f, 10.0f), defR));
+        params.push_back(std::make_unique<AudioParameterFloat>(ParameterID{curve,1}, pfx+" Curve", NormalisableRange<float>{0.0f, 1.0f}, 0.7f));
     };
 
-    addEnv(ParamID::AMPENV_A, ParamID::AMPENV_D, ParamID::AMPENV_S, ParamID::AMPENV_R,
-           "Amp Atk","Amp Dec","Amp Sus","Amp Rel");
-    addEnv(ParamID::FILTENV_A, ParamID::FILTENV_D, ParamID::FILTENV_S, ParamID::FILTENV_R,
-           "Filt Atk","Filt Dec","Filt Sus","Filt Rel");
-    addEnv(ParamID::MODENV_A, ParamID::MODENV_D, ParamID::MODENV_S, ParamID::MODENV_R,
-           "Mod Atk","Mod Dec","Mod Sus","Mod Rel");
+    addEnv(ParamID::AMPENV_A, ParamID::AMPENV_H, ParamID::AMPENV_D, ParamID::AMPENV_S,
+           ParamID::AMPENV_R, ParamID::AMPENV_CURVE, "Amp",  0.012f, 0.5f, 0.85f, 0.8f);
+    addEnv(ParamID::FILTENV_A, ParamID::FILTENV_H, ParamID::FILTENV_D, ParamID::FILTENV_S,
+           ParamID::FILTENV_R, ParamID::FILTENV_CURVE, "Filt", 0.02f, 0.3f, 0.5f, 0.5f);
+    addEnv(ParamID::MODENV_A, ParamID::MODENV_H, ParamID::MODENV_D, ParamID::MODENV_S,
+           ParamID::MODENV_R, ParamID::MODENV_CURVE, "Mod",  0.01f, 0.3f, 0.7f, 0.5f);
 
     // LFOs
     auto lfoRange = NormalisableRange<float>{0.01f, 20.0f,
@@ -281,20 +359,35 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addFloat(ParamID::DRIVE_AMOUNT, "Drive Amount",  0.0f, 1.0f, 0.3f);
     addFloat(ParamID::DRIVE_MIX,    "Drive Mix",     0.0f, 1.0f, 1.0f);
 
-    addBool (ParamID::CHORUS_ON,    "Chorus On",    false);
-    addFloat(ParamID::CHORUS_RATE,  "Chorus Rate",  0.1f, 5.0f, 0.5f);
-    addFloat(ParamID::CHORUS_DEPTH, "Chorus Depth", 0.0f, 1.0f, 0.5f);
-    addFloat(ParamID::CHORUS_MIX,   "Chorus Mix",   0.0f, 1.0f, 0.5f);
+    addBool (ParamID::CHORUS_ON,    "Chorus On",    true);
+    addFloat(ParamID::CHORUS_RATE,  "Chorus Rate",  0.1f, 5.0f, 0.4f);
+    addFloat(ParamID::CHORUS_DEPTH, "Chorus Depth", 0.0f, 1.0f, 0.45f);
+    addFloat(ParamID::CHORUS_MIX,   "Chorus Mix",   0.0f, 1.0f, 0.35f);
 
     addBool (ParamID::DELAY_ON,     "Delay On",     false);
     addFloat(ParamID::DELAY_TIME,   "Delay Time",   0.01f, 2.0f, 0.375f);
-    addFloat(ParamID::DELAY_FDBK,   "Delay Fdbk",   0.0f, 0.98f, 0.4f);
-    addFloat(ParamID::DELAY_MIX,    "Delay Mix",    0.0f, 1.0f, 0.3f);
+    addFloat(ParamID::DELAY_FDBK,   "Delay Fdbk",   0.0f, 0.98f, 0.35f);
+    addFloat(ParamID::DELAY_MIX,    "Delay Mix",    0.0f, 1.0f, 0.25f);
 
-    addBool (ParamID::REVERB_ON,    "Reverb On",    false);
-    addFloat(ParamID::REVERB_SIZE,  "Reverb Size",  0.0f, 1.0f, 0.6f);
-    addFloat(ParamID::REVERB_DAMP,  "Reverb Damp",  0.0f, 1.0f, 0.5f);
-    addFloat(ParamID::REVERB_MIX,   "Reverb Mix",   0.0f, 1.0f, 0.3f);
+    addBool (ParamID::REVERB_ON,    "Reverb On",    true);
+    addFloat(ParamID::REVERB_SIZE,  "Reverb Size",  0.0f, 1.0f, 0.72f);
+    addFloat(ParamID::REVERB_DAMP,  "Reverb Damp",  0.0f, 1.0f, 0.45f);
+    addFloat(ParamID::REVERB_MIX,   "Reverb Mix",   0.0f, 1.0f, 0.28f);
+
+    addBool (ParamID::EQ_ON,        "EQ On",        false);
+    addFloat(ParamID::EQ_LOW,       "EQ Low",      -12.0f, 12.0f, 0.0f);
+    addFloat(ParamID::EQ_MID,       "EQ Mid",      -12.0f, 12.0f, 0.0f);
+    addFloat(ParamID::EQ_HIGH,      "EQ High",     -12.0f, 12.0f, 0.0f);
+
+    addBool (ParamID::PHASER_ON,    "Phaser On",    false);
+    addFloat(ParamID::PHASER_RATE,  "Phaser Rate",  0.05f, 8.0f, 0.3f);
+    addFloat(ParamID::PHASER_DEPTH, "Phaser Depth", 0.0f, 1.0f, 0.6f);
+    addFloat(ParamID::PHASER_MIX,   "Phaser Mix",   0.0f, 1.0f, 0.5f);
+
+    addBool (ParamID::CRUSH_ON,     "Crush On",     false);
+    addFloat(ParamID::CRUSH_BITS,   "Crush Bits",   1.0f, 16.0f, 12.0f);
+    addFloat(ParamID::CRUSH_AMT,    "Crush Amt",    0.0f, 1.0f, 0.3f);
+    addFloat(ParamID::CRUSH_MIX,    "Crush Mix",    0.0f, 1.0f, 0.5f);
 
     // Master
     addFloat(ParamID::MASTER_VOL,   "Master Vol",   0.0f, 1.0f, 0.8f);
@@ -303,6 +396,44 @@ inline juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout
     addFloat(ParamID::GLIDE_TIME,   "Glide Time",   0.001f, 1.0f, 0.05f);
     addBool (ParamID::GLIDE_ON,     "Glide On",     false);
     addFloat(ParamID::PITCH_BEND_RANGE, "PB Range", 1.0f, 24.0f, 2.0f);
+
+    // Character
+    addFloat(ParamID::DRIFT_AMOUNT, "Drift",        0.0f, 1.0f, 0.35f);
+
+    // Arpeggiator
+    addBool  (ParamID::ARP_ON,   "Arp On", false);
+    addChoice(ParamID::ARP_RATE, "Arp Rate",
+              StringArray{ "1/2","1/4","1/4T","1/8","1/8T","1/16","1/16T","1/32" }, 5 /*1/16*/);
+    addChoice(ParamID::ARP_MODE, "Arp Mode",
+              StringArray{ "Up","Down","Up/Down","Down/Up","As Played","Random" }, 0);
+    addInt   (ParamID::ARP_OCT,  "Arp Octaves", 1, 4, 1);
+    addFloat (ParamID::ARP_GATE, "Arp Gate", 0.05f, 1.0f, 0.5f);
+
+    // Chord mode
+    addBool  (ParamID::CHORD_ON,   "Chord On", false);
+    {
+        StringArray chordNames;
+        for (auto* n : kChordNames) chordNames.add(n);
+        addChoice(ParamID::CHORD_TYPE, "Chord Type", chordNames, 0 /*Major*/);
+    }
+
+    // ── Macro / creative-control layer ────────────────────────────────────────
+    addFloat(ParamID::MORPH_X, "Morph X", 0.0f, 1.0f, 0.5f);
+    addFloat(ParamID::MORPH_Y, "Morph Y", 0.0f, 1.0f, 0.5f);
+
+    addFloat(ParamID::ORBIT_MOTION,  "Motion",  0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::ORBIT_SPACE,   "Space",   0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::ORBIT_TEXTURE, "Texture", 0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::ORBIT_DRIVE,   "Drive",   0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::ORBIT_TONE,    "Tone",    0.0f, 1.0f, 0.0f);
+
+    addFloat(ParamID::VIBE_DREAM, "Dreaminess", 0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::VIBE_WARM,  "Warmth",     0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::VIBE_AIR,   "Air",        0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::VIBE_MOVE,  "Movement",   0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::VIBE_GRIT,  "Grit",       0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::VIBE_WIDE,  "Width",      0.0f, 1.0f, 0.0f);
+    addFloat(ParamID::VIBE_FOCUS, "Focus",      0.0f, 1.0f, 0.0f);
 
     return { params.begin(), params.end() };
 }

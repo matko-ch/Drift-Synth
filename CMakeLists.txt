@@ -51,12 +51,30 @@ juce_generate_juce_header(Drift)
 target_sources(Drift PRIVATE
     Source/plugin/PluginProcessor.cpp
     Source/plugin/PluginProcessor.h
+    Source/plugin/Presets.cpp
+    Source/plugin/Presets.h
     Source/ui/PluginEditor.cpp
     Source/ui/PluginEditor.h
     Source/ui/DriftLookAndFeel.cpp
     Source/ui/DriftLookAndFeel.h
     Source/ui/components/KnobComponent.cpp
     Source/ui/components/KnobComponent.h
+    Source/ui/components/PresetBar.cpp
+    Source/ui/components/PresetBar.h
+    Source/ui/components/DriftFieldPad.cpp
+    Source/ui/components/DriftFieldPad.h
+    Source/ui/components/OrbitPanel.cpp
+    Source/ui/components/OrbitPanel.h
+    Source/ui/components/VibeConsole.cpp
+    Source/ui/components/VibeConsole.h
+    Source/ui/components/SynthStrip.cpp
+    Source/ui/components/SynthStrip.h
+    Source/ui/components/OscExtraPanel.cpp
+    Source/ui/components/OscExtraPanel.h
+    Source/ui/components/PerformBar.cpp
+    Source/ui/components/PerformBar.h
+    Source/ui/components/AdvancedPanel.cpp
+    Source/ui/components/AdvancedPanel.h
     Source/ui/components/OscillatorPanel.cpp
     Source/ui/components/OscillatorPanel.h
     Source/ui/components/FilterPanel.cpp
@@ -79,6 +97,11 @@ target_sources(Drift PRIVATE
     Source/dsp/LFO.h
     Source/dsp/ModMatrix.cpp
     Source/dsp/ModMatrix.h
+    Source/dsp/MacroEngine.cpp
+    Source/dsp/MacroEngine.h
+    Source/dsp/Arpeggiator.cpp
+    Source/dsp/Arpeggiator.h
+    Source/dsp/Chords.h
     Source/dsp/Voice.cpp
     Source/dsp/Voice.h
     Source/dsp/VoiceManager.cpp
@@ -91,6 +114,12 @@ target_sources(Drift PRIVATE
     Source/dsp/effects/PlateReverb.h
     Source/dsp/effects/Drive.cpp
     Source/dsp/effects/Drive.h
+    Source/dsp/effects/EQ.cpp
+    Source/dsp/effects/EQ.h
+    Source/dsp/effects/Phaser.cpp
+    Source/dsp/effects/Phaser.h
+    Source/dsp/effects/Bitcrusher.cpp
+    Source/dsp/effects/Bitcrusher.h
 )
 
 target_compile_definitions(Drift

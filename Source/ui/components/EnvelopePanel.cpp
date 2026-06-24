@@ -8,45 +8,33 @@ EnvelopePanel::EnvelopePanel(juce::AudioProcessorValueTreeState& apvts, int envT
     const char* names[] = { "AMP ENV", "FILTER ENV", "MOD ENV" };
     setText(names[envType]);
 
-    addAndMakeVisible(mAttack);
-    addAndMakeVisible(mDecay);
-    addAndMakeVisible(mSustain);
-    addAndMakeVisible(mRelease);
+    for (auto* k : { &mAttack, &mHold, &mDecay, &mSustain, &mRelease, &mCurve })
+        addAndMakeVisible(k);
 
     using namespace ParamID;
-    switch (envType) {
-        case 0:
-            mAttack .attach(apvts, AMPENV_A);
-            mDecay  .attach(apvts, AMPENV_D);
-            mSustain.attach(apvts, AMPENV_S);
-            mRelease.attach(apvts, AMPENV_R);
-            break;
-        case 1:
-            mAttack .attach(apvts, FILTENV_A);
-            mDecay  .attach(apvts, FILTENV_D);
-            mSustain.attach(apvts, FILTENV_S);
-            mRelease.attach(apvts, FILTENV_R);
-            break;
-        default:
-            mAttack .attach(apvts, MODENV_A);
-            mDecay  .attach(apvts, MODENV_D);
-            mSustain.attach(apvts, MODENV_S);
-            mRelease.attach(apvts, MODENV_R);
-            break;
-    }
+    const char* a[3]  = { AMPENV_A, FILTENV_A, MODENV_A };
+    const char* h[3]  = { AMPENV_H, FILTENV_H, MODENV_H };
+    const char* d[3]  = { AMPENV_D, FILTENV_D, MODENV_D };
+    const char* s[3]  = { AMPENV_S, FILTENV_S, MODENV_S };
+    const char* r[3]  = { AMPENV_R, FILTENV_R, MODENV_R };
+    const char* c[3]  = { AMPENV_CURVE, FILTENV_CURVE, MODENV_CURVE };
+    const int t = juce::jlimit(0, 2, envType);
+    mAttack .attach(apvts, a[t]);
+    mHold   .attach(apvts, h[t]);
+    mDecay  .attach(apvts, d[t]);
+    mSustain.attach(apvts, s[t]);
+    mRelease.attach(apvts, r[t]);
+    mCurve  .attach(apvts, c[t]);
 }
 
 void EnvelopePanel::resized() {
     const auto b = getLocalBounds().reduced(6, 18);
-    const int kw = std::max(1, (b.getWidth() - 12) / 4);
+    KnobComponent* knobs[6] = { &mAttack, &mHold, &mDecay, &mSustain, &mRelease, &mCurve };
+    const int n = 6;
+    const int kw = std::max(1, (b.getWidth() - (n - 1) * 3) / n);
     const int kh = b.getHeight();
-    const int y  = b.getY();
-    const int x  = b.getX();
-
-    mAttack .setBounds(x + 0*(kw+4), y, kw, kh);
-    mDecay  .setBounds(x + 1*(kw+4), y, kw, kh);
-    mSustain.setBounds(x + 2*(kw+4), y, kw, kh);
-    mRelease.setBounds(x + 3*(kw+4), y, kw, kh);
+    for (int i = 0; i < n; ++i)
+        knobs[i]->setBounds(b.getX() + i * (kw + 3), b.getY(), kw, kh);
 }
 
 void EnvelopePanel::paint(juce::Graphics& g) {

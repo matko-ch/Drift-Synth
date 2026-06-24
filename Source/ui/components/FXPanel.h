@@ -24,14 +24,14 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> mOnAtt;
 };
 
-// Full FX panel containing all four effects in a row.
+// Full FX panel containing all effects (two rows).
 class FXPanel : public juce::GroupComponent {
 public:
     FXPanel(juce::AudioProcessorValueTreeState& apvts);
     void resized() override;
 
 private:
-    EffectSection mDrive, mChorus, mDelay, mReverb;
+    EffectSection mDrive, mCrush, mPhaser, mChorus, mDelay, mReverb, mEQ;
 };
 
 } // namespace drift

@@ -3,21 +3,25 @@
 
 namespace drift {
 
-// ── Drift colour palette (warm, vintage, analog) ─────────────────────────────
+// ── Drift colour palette (cosmic / dreamy nebula) ────────────────────────────
 namespace Colours {
-    inline const auto Background  = juce::Colour(0xFF1A1816u);
-    inline const auto Panel       = juce::Colour(0xFF252220u);
-    inline const auto PanelBright = juce::Colour(0xFF2E2B28u);
-    inline const auto Accent      = juce::Colour(0xFFD97706u);  // amber
-    inline const auto AccentDim   = juce::Colour(0xFF92500Cu);
-    inline const auto KnobBody    = juce::Colour(0xFF3A3633u);
-    inline const auto KnobRim     = juce::Colour(0xFF5A5653u);
-    inline const auto TextBright  = juce::Colour(0xFFE7E5E4u);
-    inline const auto TextMid     = juce::Colour(0xFF9C9790u);
-    inline const auto TextDim     = juce::Colour(0xFF6B6560u);
-    inline const auto Separator   = juce::Colour(0xFF333030u);
-    inline const auto Green       = juce::Colour(0xFF65A30Du);
-    inline const auto Red         = juce::Colour(0xFFDC2626u);
+    inline const auto Background  = juce::Colour(0xFF0E0B1Eu);  // deep space indigo
+    inline const auto BgTop       = juce::Colour(0xFF1A1440u);  // gradient top
+    inline const auto BgBottom    = juce::Colour(0xFF0A0817u);  // gradient bottom
+    inline const auto Panel       = juce::Colour(0xFF1A1638u);
+    inline const auto PanelBright = juce::Colour(0xFF262148u);
+    inline const auto Accent      = juce::Colour(0xFF9D7BFFu);  // pastel violet
+    inline const auto AccentDim   = juce::Colour(0xFF5B47A8u);
+    inline const auto Accent2     = juce::Colour(0xFF5BE9D6u);  // aurora cyan
+    inline const auto Glow        = juce::Colour(0xFFFF7BD5u);  // nebula pink
+    inline const auto KnobBody    = juce::Colour(0xFF2A2550u);
+    inline const auto KnobRim     = juce::Colour(0xFF4A4180u);
+    inline const auto TextBright  = juce::Colour(0xFFEDEAFFu);
+    inline const auto TextMid     = juce::Colour(0xFF9E98C8u);
+    inline const auto TextDim     = juce::Colour(0xFF6A6498u);
+    inline const auto Separator   = juce::Colour(0xFF2E2856u);
+    inline const auto Green       = juce::Colour(0xFF5BE9A6u);
+    inline const auto Red         = juce::Colour(0xFFFF6B9Du);
 }
 
 class DriftLookAndFeel : public juce::LookAndFeel_V4 {
@@ -28,6 +32,11 @@ public:
     void drawRotarySlider(juce::Graphics&, int x, int y, int w, int h,
                           float sliderPos, float rotaryStartAngle, float rotaryEndAngle,
                           juce::Slider&) override;
+
+    // Faders (vertical linear sliders)
+    void drawLinearSlider(juce::Graphics&, int x, int y, int w, int h,
+                          float sliderPos, float minSliderPos, float maxSliderPos,
+                          juce::Slider::SliderStyle, juce::Slider&) override;
 
     // Buttons
     void drawToggleButton(juce::Graphics&, juce::ToggleButton&,

@@ -2,12 +2,13 @@
 #include <JuceHeader.h>
 #include "../plugin/PluginProcessor.h"
 #include "DriftLookAndFeel.h"
-#include "components/OscillatorPanel.h"
-#include "components/FilterPanel.h"
-#include "components/EnvelopePanel.h"
-#include "components/LFOPanel.h"
-#include "components/ModMatrixPanel.h"
-#include "components/FXPanel.h"
+#include "components/PresetBar.h"
+#include "components/DriftFieldPad.h"
+#include "components/OrbitPanel.h"
+#include "components/VibeConsole.h"
+#include "components/SynthStrip.h"
+#include "components/PerformBar.h"
+#include "components/AdvancedPanel.h"
 #include "components/KnobComponent.h"
 
 namespace drift {
@@ -24,56 +25,26 @@ public:
 
 private:
     void timerCallback() override;
+    void updateView();
 
     PluginProcessor& mProcessor;
 
-    // ── Sections ──────────────────────────────────────────────────────────────
-    OscillatorPanel mOsc1Panel, mOsc2Panel;
-    FilterPanel     mFilter1Panel, mFilter2Panel;
+    PresetBar      mPresetBar;
+    DriftFieldPad  mField;
+    OrbitPanel     mOrbit;
+    VibeConsole    mVibe;
+    SynthStrip     mStrip;
+    PerformBar     mPerform;
 
-    // Filter routing toggle
-    juce::ToggleButton mFilterRoutingBtn { "Parallel" };
-    juce::Label        mFilterRoutingLabel;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> mRoutingAtt;
+    juce::Viewport mAdvViewport;
+    AdvancedPanel  mAdvanced;
+    juce::TextButton mAdvToggle { "ADVANCED" };
 
-    // Unison section
-    juce::GroupComponent mUnisonGroup;
-    KnobComponent mUnisonVoicesKnob { "Voices" };
-    KnobComponent mUnisonDetuneKnob { "Detune" };
-    KnobComponent mUnisonSpreadKnob { "Spread" };
+    KnobComponent  mMasterVol { "VOL" };
+    juce::MidiKeyboardComponent mKeyboard;
 
-    // Osc mix
-    KnobComponent mOscMixKnob { "Mix" };
-
-    // Master section
-    juce::GroupComponent mMasterGroup;
-    KnobComponent mMasterVolKnob   { "Volume" };
-    KnobComponent mMasterTuneKnob  { "Tune"   };
-    KnobComponent mGlideKnob       { "Glide"  };
-    juce::ToggleButton mGlideOnBtn { "Glide" };
-    juce::ComboBox     mPolyVoicesCB;
-    juce::Label        mPolyLabel;
-
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>   mGlideOnAtt;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> mPolyAtt;
-
-    // Envelopes
-    EnvelopePanel mAmpEnvPanel, mFilterEnvPanel, mModEnvPanel;
-
-    // LFOs
-    LFOPanel mLFO1Panel, mLFO2Panel;
-
-    // Mod Matrix
-    ModMatrixPanel mModMatrix;
-
-    // FX
-    FXPanel mFXPanel;
-
-    // Meters
-    float mMeterLDisplay = 0.0f, mMeterRDisplay = 0.0f;
-
-    // Header
-    juce::Label mTitleLabel;
+    bool  mShowAdvanced = false;
+    float mMeterL = 0.0f, mMeterR = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluginEditor)
 };

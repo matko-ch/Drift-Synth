@@ -2,108 +2,68 @@
 
 namespace drift {
 
-static constexpr int kEditorW = 960;
-static constexpr int kEditorH = 680;
+static constexpr int kEditorW = 1120;
+static constexpr int kEditorH = 880;
 
 PluginEditor::PluginEditor(PluginProcessor& proc)
     : AudioProcessorEditor(proc)
     , mProcessor(proc)
-    , mOsc1Panel   (proc.apvts, 1)
-    , mOsc2Panel   (proc.apvts, 2)
-    , mFilter1Panel(proc.apvts, 1)
-    , mFilter2Panel(proc.apvts, 2)
-    , mAmpEnvPanel   (proc.apvts, 0)
-    , mFilterEnvPanel(proc.apvts, 1)
-    , mModEnvPanel   (proc.apvts, 2)
-    , mLFO1Panel(proc.apvts, 1)
-    , mLFO2Panel(proc.apvts, 2)
-    , mModMatrix(proc.apvts)
-    , mFXPanel  (proc.apvts)
+    , mPresetBar(proc)
+    , mField(proc.apvts)
+    , mOrbit(proc.apvts)
+    , mVibe(proc.apvts)
+    , mStrip(proc.apvts)
+    , mPerform(proc.apvts)
+    , mAdvanced(proc.apvts)
+    , mKeyboard(proc.keyboardState, juce::MidiKeyboardComponent::horizontalKeyboard)
 {
     setLookAndFeel(&DriftLookAndFeel::instance());
 
-    // Title
-    mTitleLabel.setText("DRIFT", juce::dontSendNotification);
-    mTitleLabel.setFont(juce::Font(juce::FontOptions{}.withHeight(22.0f).withStyle("Bold")));
-    mTitleLabel.setColour(juce::Label::textColourId, Colours::Accent);
-    mTitleLabel.setJustificationType(juce::Justification::centredLeft);
-    addAndMakeVisible(mTitleLabel);
+    addAndMakeVisible(mPresetBar);
+    addAndMakeVisible(mField);
+    addAndMakeVisible(mOrbit);
+    addAndMakeVisible(mVibe);
+    addAndMakeVisible(mStrip);
+    addAndMakeVisible(mPerform);
 
-    // Oscillator panels
-    addAndMakeVisible(mOsc1Panel);
-    addAndMakeVisible(mOsc2Panel);
+    mMasterVol.attach(proc.apvts, ParamID::MASTER_VOL);
+    addAndMakeVisible(mMasterVol);
 
-    // Osc mix knob
-    mOscMixKnob.attach(proc.apvts, ParamID::OSC_MIX);
-    addAndMakeVisible(mOscMixKnob);
+    mAdvToggle.setClickingTogglesState(true);
+    mAdvToggle.setColour(juce::TextButton::buttonColourId,   Colours::PanelBright);
+    mAdvToggle.setColour(juce::TextButton::buttonOnColourId, Colours::AccentDim);
+    mAdvToggle.setColour(juce::TextButton::textColourOffId,  Colours::TextMid);
+    mAdvToggle.setColour(juce::TextButton::textColourOnId,   Colours::TextBright);
+    mAdvToggle.onClick = [this] {
+        mShowAdvanced = mAdvToggle.getToggleState();
+        updateView();
+    };
+    addAndMakeVisible(mAdvToggle);
 
-    // Unison
-    mUnisonGroup.setText("UNISON");
-    mUnisonVoicesKnob.attach(proc.apvts, ParamID::UNISON_VOICES);
-    mUnisonDetuneKnob.attach(proc.apvts, ParamID::UNISON_DETUNE);
-    mUnisonSpreadKnob.attach(proc.apvts, ParamID::UNISON_SPREAD);
-    mUnisonGroup.addAndMakeVisible(mUnisonVoicesKnob);
-    mUnisonGroup.addAndMakeVisible(mUnisonDetuneKnob);
-    mUnisonGroup.addAndMakeVisible(mUnisonSpreadKnob);
-    addAndMakeVisible(mUnisonGroup);
+    mAdvViewport.setViewedComponent(&mAdvanced, false);
+    mAdvViewport.setScrollBarsShown(true, false);
+    addChildComponent(mAdvViewport);
 
-    // Filters
-    addAndMakeVisible(mFilter1Panel);
-    addAndMakeVisible(mFilter2Panel);
+    // Keyboard: full 88-key range available; how many octaves show is driven by
+    // the window width (MidiKeyboardComponent fills its bounds from the lowest
+    // visible key). Scroll buttons let you reach the rest.
+    mKeyboard.setAvailableRange(21, 108);
+    mKeyboard.setLowestVisibleKey(36);
+    mKeyboard.setKeyWidth(24.0f);
+    mKeyboard.setScrollButtonsVisible(true);
+    mKeyboard.setColour(juce::MidiKeyboardComponent::whiteNoteColourId, Colours::TextBright);
+    mKeyboard.setColour(juce::MidiKeyboardComponent::blackNoteColourId, Colours::Background.brighter(0.1f));
+    mKeyboard.setColour(juce::MidiKeyboardComponent::keySeparatorLineColourId, Colours::Separator);
+    mKeyboard.setColour(juce::MidiKeyboardComponent::keyDownOverlayColourId, Colours::Accent.withAlpha(0.7f));
+    mKeyboard.setColour(juce::MidiKeyboardComponent::mouseOverKeyOverlayColourId, Colours::Accent2.withAlpha(0.35f));
+    mKeyboard.setColour(juce::MidiKeyboardComponent::shadowColourId, Colours::Background);
+    addAndMakeVisible(mKeyboard);
 
-    // Filter routing
-    mFilterRoutingBtn.setButtonText("Parallel");
-    mRoutingAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        proc.apvts, ParamID::FILT_ROUTING, mFilterRoutingBtn);
-    addAndMakeVisible(mFilterRoutingBtn);
-    mFilterRoutingLabel.setText("Routing", juce::dontSendNotification);
-    mFilterRoutingLabel.setColour(juce::Label::textColourId, Colours::TextDim);
-    mFilterRoutingLabel.setFont(juce::Font(juce::FontOptions{}.withHeight(10.0f)));
-    mFilterRoutingLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(mFilterRoutingLabel);
-
-    // Envelopes
-    addAndMakeVisible(mAmpEnvPanel);
-    addAndMakeVisible(mFilterEnvPanel);
-    addAndMakeVisible(mModEnvPanel);
-
-    // LFOs
-    addAndMakeVisible(mLFO1Panel);
-    addAndMakeVisible(mLFO2Panel);
-
-    // Mod Matrix
-    addAndMakeVisible(mModMatrix);
-
-    // Master
-    mMasterGroup.setText("MASTER");
-    mMasterVolKnob.attach(proc.apvts, ParamID::MASTER_VOL);
-    mMasterTuneKnob.attach(proc.apvts, ParamID::MASTER_TUNE);
-    mGlideKnob.attach(proc.apvts, ParamID::GLIDE_TIME);
-    mGlideOnAtt = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
-        proc.apvts, ParamID::GLIDE_ON, mGlideOnBtn);
-    mPolyVoicesCB.addItemList({"1","2","3","4","5","6","7","8","9","10","11","12","13","14","15","16"}, 1);
-    mPolyLabel.setText("Poly", juce::dontSendNotification);
-    mPolyLabel.setColour(juce::Label::textColourId, Colours::TextDim);
-    mPolyLabel.setFont(juce::Font(juce::FontOptions{}.withHeight(10.0f)));
-    mPolyLabel.setJustificationType(juce::Justification::centred);
-    mPolyAtt = std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(
-        proc.apvts, ParamID::POLY_VOICES, mPolyVoicesCB);
-    mMasterGroup.addAndMakeVisible(mMasterVolKnob);
-    mMasterGroup.addAndMakeVisible(mMasterTuneKnob);
-    mMasterGroup.addAndMakeVisible(mGlideKnob);
-    mMasterGroup.addAndMakeVisible(mGlideOnBtn);
-    mMasterGroup.addAndMakeVisible(mPolyVoicesCB);
-    mMasterGroup.addAndMakeVisible(mPolyLabel);
-    addAndMakeVisible(mMasterGroup);
-
-    // FX
-    addAndMakeVisible(mFXPanel);
-
-    // Window size
     setResizable(true, true);
-    setResizeLimits(768, 520, 1280, 900);
+    setResizeLimits(980, 740, 1600, 1180);
     setSize(kEditorW, kEditorH);
 
+    updateView();
     startTimerHz(30);
 }
 
@@ -112,148 +72,105 @@ PluginEditor::~PluginEditor() {
     setLookAndFeel(nullptr);
 }
 
-// ── Layout ────────────────────────────────────────────────────────────────────
+void PluginEditor::updateView() {
+    const bool adv = mShowAdvanced;
+    mAdvViewport.setVisible(adv);
+    mField.setVisible(!adv);
+    mOrbit.setVisible(!adv);
+    mVibe.setVisible(!adv);
+    resized();
+}
 
 void PluginEditor::resized() {
     auto full = getLocalBounds();
 
-    // ── Header ────────────────────────────────────────────────────────────────
-    const int headerH = 36;
-    const auto header = full.removeFromTop(headerH);
-    mTitleLabel.setBounds(header.reduced(10, 4));
+    // ── Top bar ─────────────────────────────────────────────────────────────────
+    auto bar = full.removeFromTop(64);
+    auto barRight = bar.removeFromRight(180);
+    mPresetBar.setBounds(bar);
+    mMasterVol.setBounds(barRight.removeFromLeft(60).reduced(4, 4));
+    mAdvToggle.setBounds(barRight.reduced(6, 18).removeFromTop(26));
 
-    const int padH = 6, padV = 4;
-    auto body = full.reduced(padH, padV);
+    // ── Keyboard (bottom, full width) ────────────────────────────────────────────
+    auto keys = full.removeFromBottom(104);
+    mKeyboard.setBounds(keys.reduced(10, 8));
+    // Centre the visible span on middle C; width decides how many octaves show.
+    const int whiteKeysShown = juce::jmax(7, (int)(mKeyboard.getWidth() / mKeyboard.getKeyWidth()));
+    const int semitonesShown = whiteKeysShown * 12 / 7;
+    int lowest = 60 - semitonesShown / 2;
+    lowest = (lowest / 12) * 12;  // snap to a C
+    mKeyboard.setLowestVisibleKey(juce::jlimit(21, 108 - semitonesShown, lowest));
 
-    // ── Row 1: OSC + Unison + Mix ─────────────────────────────────────────────
-    const int row1H = 130;
-    auto row1 = body.removeFromTop(row1H);
-    body.removeFromTop(padV);
+    // ── Perform bar (arp + chord), above keyboard ───────────────────────────────
+    auto perform = full.removeFromBottom(52);
+    mPerform.setBounds(perform.reduced(10, 4));
 
-    const int oscW  = 260;
-    const int mixW  = 50;
-    const int uniW  = 170;
-    mOsc1Panel.setBounds(row1.removeFromLeft(oscW));
-    row1.removeFromLeft(padH);
-    mOsc2Panel.setBounds(row1.removeFromLeft(oscW));
-    row1.removeFromLeft(padH);
+    // ── Synth strip (above perform bar) ─────────────────────────────────────────
+    auto strip = full.removeFromBottom(120);
+    mStrip.setBounds(strip.reduced(10, 4));
 
-    // Osc mix knob
-    const auto mixArea = row1.removeFromLeft(mixW);
-    mOscMixKnob.setBounds(mixArea.reduced(0, 30).withTrimmedBottom(10));
-    row1.removeFromLeft(padH);
+    // ── Creative area / Advanced drawer ─────────────────────────────────────────
+    auto area = full.reduced(10, 6);
+    if (mShowAdvanced) {
+        mAdvViewport.setBounds(area);
+        mAdvanced.setSize(area.getWidth() - 14, AdvancedPanel::kContentHeight);
+    } else {
+        const int pad = 10;
+        auto vibe = area.removeFromRight(juce::jmax(290, area.getWidth() * 28 / 100));
+        mVibe.setBounds(vibe);
+        area.removeFromRight(pad);
 
-    mUnisonGroup.setBounds(row1.removeFromLeft(uniW));
-    row1.removeFromLeft(padH);
+        const int orbitW = juce::jmin(380, area.getWidth() * 45 / 100);
+        auto orbit = area.removeFromRight(orbitW);
+        mOrbit.setBounds(orbit);
+        area.removeFromRight(pad);
 
-    // ── Row 2: Filters ────────────────────────────────────────────────────────
-    const int row2H = 140;
-    auto row2 = body.removeFromTop(row2H);
-    body.removeFromTop(padV);
-
-    const int filtW = 280;
-    mFilter1Panel.setBounds(row2.removeFromLeft(filtW));
-    row2.removeFromLeft(padH);
-    mFilter2Panel.setBounds(row2.removeFromLeft(filtW));
-    row2.removeFromLeft(padH);
-
-    // Routing button
-    auto routArea = row2.removeFromLeft(80);
-    mFilterRoutingLabel.setBounds(routArea.removeFromTop(16));
-    mFilterRoutingBtn.setBounds(routArea.reduced(0, 20));
-
-    // Master group fills the rest
-    mMasterGroup.setBounds(row2);
-    // Layout within master group:
-    {
-        auto mg = mMasterGroup.getLocalBounds().reduced(6, 18);
-        const int kw = 44;
-        mMasterVolKnob.setBounds(mg.getX() + 0*(kw+4), mg.getY(), kw, 58);
-        mMasterTuneKnob.setBounds(mg.getX() + 1*(kw+4), mg.getY(), kw, 58);
-        mGlideKnob.setBounds(mg.getX() + 2*(kw+4), mg.getY(), kw, 58);
-        mGlideOnBtn.setBounds(mg.getX() + 3*(kw+4) + 2, mg.getY() + 18, 44, 20);
-        mPolyLabel.setBounds(mg.getX() + 4*(kw+4), mg.getY(), 44, 14);
-        mPolyVoicesCB.setBounds(mg.getX() + 4*(kw+4), mg.getY() + 14, 44, 22);
+        mField.setBounds(area);
     }
-
-    // ── Row 3: Envelopes + LFOs ───────────────────────────────────────────────
-    const int row3H = 120;
-    auto row3 = body.removeFromTop(row3H);
-    body.removeFromTop(padV);
-
-    const int envW = (row3.getWidth() - 2*(row3.getWidth()/5) - 4*padH) / 3;
-    const int lfoW = row3.getWidth() / 5;
-    mAmpEnvPanel   .setBounds(row3.removeFromLeft(envW));
-    row3.removeFromLeft(padH);
-    mFilterEnvPanel.setBounds(row3.removeFromLeft(envW));
-    row3.removeFromLeft(padH);
-    mModEnvPanel   .setBounds(row3.removeFromLeft(envW));
-    row3.removeFromLeft(padH);
-    mLFO1Panel.setBounds(row3.removeFromLeft(lfoW));
-    row3.removeFromLeft(padH);
-    mLFO2Panel.setBounds(row3);
-
-    // ── Row 4: Mod Matrix + FX ────────────────────────────────────────────────
-    const int matrixW = 430;
-    auto row4 = body;
-    mModMatrix.setBounds(row4.removeFromLeft(matrixW));
-    row4.removeFromLeft(padH);
-    mFXPanel.setBounds(row4);
 }
-
-// ── Paint ─────────────────────────────────────────────────────────────────────
 
 void PluginEditor::paint(juce::Graphics& g) {
-    // Background
-    g.fillAll(Colours::Background);
+    // Nebula gradient background
+    juce::ColourGradient bg(Colours::BgTop, 0.0f, 0.0f,
+                            Colours::BgBottom, 0.0f, (float)getHeight(), false);
+    bg.addColour(0.5, Colours::Background);
+    g.setGradientFill(bg);
+    g.fillAll();
 
-    // Subtle grid lines
-    g.setColour(Colours::Separator.withAlpha(0.4f));
-    for (int y = 36; y < getHeight(); y += 80)
-        g.drawHorizontalLine(y, 0.0f, static_cast<float>(getWidth()));
+    // Soft nebula blooms
+    auto bloom = [&](float cx, float cy, float r, juce::Colour c) {
+        g.setGradientFill(juce::ColourGradient(c.withAlpha(0.10f), cx, cy,
+                                               juce::Colours::transparentBlack, cx, cy - r, true));
+        g.fillEllipse(cx - r, cy - r, r * 2.0f, r * 2.0f);
+    };
+    bloom(getWidth() * 0.18f, getHeight() * 0.30f, 280.0f, Colours::Accent);
+    bloom(getWidth() * 0.80f, getHeight() * 0.22f, 240.0f, Colours::Accent2);
+    bloom(getWidth() * 0.55f, getHeight() * 0.70f, 260.0f, Colours::Glow);
 
-    // Header gradient
-    juce::ColourGradient headerGrad(
-        Colours::Panel, 0.0f, 0.0f,
-        Colours::Background, 0.0f, 36.0f, false);
-    g.setGradientFill(headerGrad);
-    g.fillRect(0, 0, getWidth(), 36);
-
-    // Version label
-    g.setFont(juce::Font(juce::FontOptions{}.withHeight(10.0f)));
-    g.setColour(Colours::TextDim);
-    g.drawText("v1.0  virtual analog", getWidth() - 200, 12, 190, 14,
-               juce::Justification::centredRight);
-
-    // Output meters (right of header)
-    const float mL = mMeterLDisplay;
-    const float mR = mMeterRDisplay;
-    const int mX = getWidth() - 200 - 50;
-    const int mY = 10;
-    const int mW = 6, mH = 16;
-
+    // Top-bar separator
     g.setColour(Colours::Separator);
-    g.fillRect(mX, mY, mW, mH);
-    g.fillRect(mX + mW + 2, mY, mW, mH);
+    g.drawHorizontalLine(64, 0.0f, (float)getWidth());
 
-    g.setColour(mL > 0.9f ? Colours::Red : Colours::Green);
-    g.fillRect(mX, mY + mH - static_cast<int>(mL * mH), mW, static_cast<int>(mL * mH));
-    g.setColour(mR > 0.9f ? Colours::Red : Colours::Green);
-    g.fillRect(mX + mW + 2, mY + mH - static_cast<int>(mR * mH), mW, static_cast<int>(mR * mH));
+    // Stereo output meters (top-right corner)
+    const int mX = getWidth() - 16, mY = 8, mW = 5, mH = 10;
+    auto drawMeter = [&](int x, float v) {
+        g.setColour(Colours::Separator);
+        g.fillRect(x, mY, mW, mH);
+        g.setColour(v > 0.92f ? Colours::Red : Colours::Green);
+        const int lit = (int)(juce::jlimit(0.0f, 1.0f, v) * mH);
+        g.fillRect(x, mY + mH - lit, mW, lit);
+    };
+    drawMeter(mX - mW,        mMeterL);
+    drawMeter(mX - mW * 2 - 2, mMeterR);
 }
 
-// ── Timer ─────────────────────────────────────────────────────────────────────
-
 void PluginEditor::timerCallback() {
-    // Meter ballistics: fast attack, slow decay
-    const float atk = 0.8f, dcy = 0.93f;
+    const float atk = 0.7f, dcy = 0.9f;
     const float rawL = mProcessor.meterL.load(std::memory_order_relaxed);
     const float rawR = mProcessor.meterR.load(std::memory_order_relaxed);
-    mMeterLDisplay = rawL > mMeterLDisplay ? mMeterLDisplay + atk * (rawL - mMeterLDisplay)
-                                            : mMeterLDisplay * dcy;
-    mMeterRDisplay = rawR > mMeterRDisplay ? mMeterRDisplay + atk * (rawR - mMeterRDisplay)
-                                            : mMeterRDisplay * dcy;
-    repaint(getWidth() - 280, 0, 280, 36);  // repaint only header meter area
+    mMeterL = rawL > mMeterL ? mMeterL + atk * (rawL - mMeterL) : mMeterL * dcy;
+    mMeterR = rawR > mMeterR ? mMeterR + atk * (rawR - mMeterR) : mMeterR * dcy;
+    repaint(getWidth() - 40, 0, 40, 24);
 }
 
 } // namespace drift

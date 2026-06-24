@@ -46,6 +46,12 @@ inline constexpr int kOversample = 2;
 inline constexpr float kParamSmoothSec = 0.005f;  // 5 ms
 inline constexpr float kPitchSmoothSec = 0.001f;  // 1 ms
 
+// ── Analog "drift" character ──────────────────────────────────────────────────
+// Per-oscillator pitch wander modelled as a slow, bounded random walk in [-1,1].
+inline constexpr float kMaxDriftCents = 16.0f;   // peak detune at drift = 1.0
+inline constexpr float kDriftStep     = 0.0016f; // random-walk step size / sample
+inline constexpr float kDriftLeak     = 0.99996f;// gentle pull back toward centre
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 [[nodiscard]] inline float midiNoteToHz(float midi) noexcept {
     return kTuningA4Hz * std::exp2((midi - kMidiA4Note) * (1.0f / 12.0f));
@@ -59,6 +65,33 @@ inline constexpr float kPitchSmoothSec = 0.001f;  // 1 ms
 
 [[nodiscard]] inline float clamp(float v, float lo, float hi) noexcept {
     return v < lo ? lo : (v > hi ? hi : v);
+}
+
+// ── Fast per-voice RNG (xorshift32) ───────────────────────────────────────────
+// Deterministic, allocation-free, thread-local-by-instance. Each Voice/Oscillator
+// owns its own state so there is no shared mutable data on the audio thread.
+struct XorShift32 {
+    uint32_t state = 0x9E3779B9u;
+    DRIFT_HOT inline uint32_t next() noexcept {
+        uint32_t x = state;
+        x ^= x << 13; x ^= x >> 17; x ^= x << 5;
+        return state = x;
+    }
+    // Uniform float in [-1, 1)
+    DRIFT_HOT inline float bipolar() noexcept {
+        return static_cast<float>(next()) * (2.0f / 4294967296.0f) - 1.0f;
+    }
+    // Uniform float in [0, 1)
+    DRIFT_HOT inline float unipolar() noexcept {
+        return static_cast<float>(next()) * (1.0f / 4294967296.0f);
+    }
+    inline void seed(uint32_t s) noexcept { state = (s == 0u) ? 0x9E3779B9u : s; }
+};
+
+// Musical soft-saturator: ~unity slope near zero, smoothly limits large peaks.
+// Used as a gentle master/console stage to tame digital clipping with warmth.
+[[nodiscard]] DRIFT_HOT inline float softSaturate(float x) noexcept {
+    return fastTanh(x);
 }
 
 // Linear to dB (quiet floor at -144 dB)

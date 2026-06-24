@@ -39,55 +39,94 @@ void DriftLookAndFeel::drawRotarySlider(juce::Graphics& g,
     if (radius <= 0.0f) return;
 
     const float angle = startAngle + sliderPos * (endAngle - startAngle);
+    const float arcR  = radius + 3.5f;
 
-    // ── Shadow ────────────────────────────────────────────────────────────────
+    // ── Outer glow (nebula bloom) ───────────────────────────────────────────────
     {
-        juce::ColourGradient shadow(juce::Colours::black.withAlpha(0.45f),
-                                     cx, cy + radius * 0.3f,
-                                     juce::Colours::transparentBlack,
-                                     cx, cy + radius * 1.4f, true);
-        g.setGradientFill(shadow);
-        g.fillEllipse(cx - radius, cy - radius + 4.0f, radius * 2.0f, radius * 2.0f);
+        juce::ColourGradient glow(Colours::Accent.withAlpha(0.28f), cx, cy,
+                                   juce::Colours::transparentBlack, cx, cy - arcR * 1.6f, true);
+        g.setGradientFill(glow);
+        g.fillEllipse(cx - arcR * 1.5f, cy - arcR * 1.5f, arcR * 3.0f, arcR * 3.0f);
     }
 
     // ── Body gradient ─────────────────────────────────────────────────────────
     {
-        juce::ColourGradient grad(Colours::KnobRim, cx - radius * 0.3f, cy - radius * 0.4f,
-                                   Colours::KnobBody, cx + radius * 0.3f, cy + radius * 0.4f, false);
+        juce::ColourGradient grad(Colours::KnobRim, cx - radius * 0.4f, cy - radius * 0.5f,
+                                   Colours::KnobBody, cx + radius * 0.4f, cy + radius * 0.5f, false);
         g.setGradientFill(grad);
         g.fillEllipse(cx - radius, cy - radius, radius * 2.0f, radius * 2.0f);
     }
 
+    // ── Inner sheen ─────────────────────────────────────────────────────────────
+    g.setColour(juce::Colours::white.withAlpha(0.05f));
+    g.fillEllipse(cx - radius * 0.7f, cy - radius * 0.8f, radius * 1.4f, radius * 1.0f);
+
     // ── Outer rim ─────────────────────────────────────────────────────────────
-    g.setColour(juce::Colour(0xFF222020u));
+    g.setColour(Colours::Background.darker(0.4f));
     g.drawEllipse(cx - radius, cy - radius, radius * 2.0f, radius * 2.0f, 1.5f);
 
     // ── Arc track ─────────────────────────────────────────────────────────────
-    const float arcR = radius + 3.5f;
     juce::Path track;
     track.addArc(cx - arcR, cy - arcR, arcR * 2.0f, arcR * 2.0f,
                  startAngle, endAngle, true);
     g.setColour(Colours::Separator);
-    g.strokePath(track, juce::PathStrokeType(2.5f, juce::PathStrokeType::curved,
+    g.strokePath(track, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved,
                                               juce::PathStrokeType::rounded));
 
-    // ── Filled arc ────────────────────────────────────────────────────────────
+    // ── Filled arc (violet→pink gradient) ───────────────────────────────────────
     if (std::abs(angle - startAngle) > 0.01f) {
         juce::Path fill;
         fill.addArc(cx - arcR, cy - arcR, arcR * 2.0f, arcR * 2.0f,
                     startAngle, angle, true);
-        g.setColour(Colours::Accent);
-        g.strokePath(fill, juce::PathStrokeType(2.5f, juce::PathStrokeType::curved,
+        g.setGradientFill(juce::ColourGradient(
+            Colours::Accent2, cx - arcR, cy, Colours::Glow, cx + arcR, cy, false));
+        g.strokePath(fill, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved,
                                                  juce::PathStrokeType::rounded));
     }
 
-    // ── Indicator dot ─────────────────────────────────────────────────────────
-    const float dotR  = radius * 0.12f;
-    const float dotDist = radius * 0.62f;
-    const float dotX  = cx + std::sin(angle) * dotDist;
-    const float dotY  = cy - std::cos(angle) * dotDist;
+    // ── Indicator line ──────────────────────────────────────────────────────────
+    const float innerR = radius * 0.35f, outerR = radius * 0.82f;
+    const float sa = std::sin(angle), ca = -std::cos(angle);
+    juce::Line<float> ind(cx + sa * innerR, cy + ca * innerR,
+                          cx + sa * outerR, cy + ca * outerR);
     g.setColour(Colours::TextBright);
-    g.fillEllipse(dotX - dotR, dotY - dotR, dotR * 2.0f, dotR * 2.0f);
+    g.drawLine(ind, 2.4f);
+}
+
+// ── Fader (vertical linear slider) ──────────────────────────────────────────────
+void DriftLookAndFeel::drawLinearSlider(juce::Graphics& g,
+    int x, int y, int w, int h,
+    float sliderPos, float /*minPos*/, float /*maxPos*/,
+    juce::Slider::SliderStyle /*style*/, juce::Slider& /*slider*/)
+{
+    const float cx = x + w * 0.5f;
+    const float trackW = 5.0f;
+    const float top = y + 6.0f, bot = y + h - 6.0f;
+
+    // Track
+    juce::Rectangle<float> track(cx - trackW * 0.5f, top, trackW, bot - top);
+    g.setColour(Colours::Separator);
+    g.fillRoundedRectangle(track, trackW * 0.5f);
+
+    // Filled portion (from bottom up to the thumb)
+    const float ty = juce::jlimit(top, bot, sliderPos);
+    juce::Rectangle<float> fill(cx - trackW * 0.5f, ty, trackW, bot - ty);
+    g.setGradientFill(juce::ColourGradient(Colours::Glow, cx, bot,
+                                           Colours::Accent2, cx, top, false));
+    g.fillRoundedRectangle(fill, trackW * 0.5f);
+
+    // Thumb (glowing cap)
+    const float thumbR = 9.0f;
+    {
+        juce::ColourGradient glow(Colours::Accent.withAlpha(0.5f), cx, ty,
+                                   juce::Colours::transparentBlack, cx, ty - thumbR * 2.2f, true);
+        g.setGradientFill(glow);
+        g.fillEllipse(cx - thumbR * 2.0f, ty - thumbR * 2.0f, thumbR * 4.0f, thumbR * 4.0f);
+    }
+    g.setColour(Colours::TextBright);
+    g.fillEllipse(cx - thumbR, ty - thumbR, thumbR * 2.0f, thumbR * 2.0f);
+    g.setColour(Colours::Accent);
+    g.drawEllipse(cx - thumbR, ty - thumbR, thumbR * 2.0f, thumbR * 2.0f, 2.0f);
 }
 
 // ── Toggle button ─────────────────────────────────────────────────────────────

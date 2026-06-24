@@ -9,6 +9,7 @@ void Voice::prepare(double sampleRate) noexcept {
 
     for (auto& o : mOsc1) o.prepare(sampleRate);
     for (auto& o : mOsc2) o.prepare(sampleRate);
+    mSub.prepare(sampleRate);
 
     mFilter1L.prepare(sampleRate); mFilter1R.prepare(sampleRate);
     mFilter2L.prepare(sampleRate); mFilter2R.prepare(sampleRate);
@@ -23,12 +24,17 @@ void Voice::prepare(double sampleRate) noexcept {
     // Kill ramp: 10 ms
     mKillCoeff = std::exp(-1.0f / static_cast<float>(sampleRate * 0.010));
 
+    // Seed the per-voice RNG from the instance address so every voice drifts
+    // independently (no shared mutable state on the audio thread).
+    mRng.seed(static_cast<uint32_t>(reinterpret_cast<std::uintptr_t>(this)) | 1u);
+
     reset();
 }
 
 void Voice::reset() noexcept {
     for (auto& o : mOsc1) o.reset();
     for (auto& o : mOsc2) o.reset();
+    mSub.reset();
     mFilter1L.reset(); mFilter1R.reset();
     mFilter2L.reset(); mFilter2R.reset();
     mAmpEnv.reset();
@@ -40,6 +46,8 @@ void Voice::reset() noexcept {
     mKilling   = false;
     mAgeSamples = 0.0f;
     mCurrentNote = static_cast<float>(mMidiNote);
+    mDrift1.fill(0.0f);
+    mDrift2.fill(0.0f);
 }
 
 void Voice::panic() noexcept {
@@ -146,8 +154,12 @@ std::pair<float, float> Voice::process(const PatchParams& patch) noexcept {
     const float modEnvVal    = mModEnv.process();
 
     // ── LFOs ─────────────────────────────────────────────────────────────────
-    const float lfo1Val = mLFO1.process(patch.lfo1Depth);
-    const float lfo2Val = mLFO2.process(patch.lfo2Depth);
+    // Compute the raw bipolar LFO once, then scale: user depth feeds the mod
+    // matrix, while the macro layer taps the full-depth signal independently.
+    const float lfo1Raw = mLFO1.process(1.0f);
+    const float lfo2Raw = mLFO2.process(1.0f);
+    const float lfo1Val = lfo1Raw * patch.lfo1Depth;
+    const float lfo2Val = lfo2Raw * patch.lfo2Depth;
 
     // ── Mod matrix ────────────────────────────────────────────────────────────
     const float keyTrackNorm = (mCurrentNote - 60.0f) / 60.0f;  // ±1 at C±5 octaves
@@ -169,7 +181,8 @@ std::pair<float, float> Voice::process(const PatchParams& patch) noexcept {
     const float basePitch = mCurrentNote
         + patch.masterPitch
         + mPitchBendSemitones
-        + mod.masterPitch;
+        + mod.masterPitch
+        + lfo1Raw * patch.macroVibrato;   // macro "movement" vibrato
 
     const float osc1BasePitch = basePitch
         + static_cast<float>(patch.osc1Octave) * 12.0f
@@ -196,25 +209,44 @@ std::pair<float, float> Voice::process(const PatchParams& patch) noexcept {
     const int nUni = std::clamp(patch.unisonVoices, 1, kMaxUnisonVoices);
     float sumL = 0.0f, sumR = 0.0f;
 
-    const float uniNorm = 1.0f / static_cast<float>(nUni);
+    // Equal-power normalisation so unison count doesn't change perceived loudness.
+    const float uniNorm = 1.0f / std::sqrt(static_cast<float>(nUni));
+
+    // Analog drift: each oscillator wanders slowly in pitch. The soul of "Drift".
+    const float driftSemis = patch.driftAmount * kMaxDriftCents * 0.01f;
 
     for (int ui = 0; ui < nUni; ++ui) {
-        // Unison detune per voice
-        const float pi1 = computePhaseInc(osc1BasePitch, ui, nUni, patch.unisonDetune, 0.0f);
-        const float pi2 = computePhaseInc(osc2BasePitch, ui, nUni, patch.unisonDetune, 0.0f);
+        // Advance the per-oscillator bounded random walk
+        mDrift1[ui] = clamp(mDrift1[ui] * kDriftLeak + mRng.bipolar() * kDriftStep, -1.0f, 1.0f);
+        mDrift2[ui] = clamp(mDrift2[ui] * kDriftLeak + mRng.bipolar() * kDriftStep, -1.0f, 1.0f);
+        const float d1 = mDrift1[ui] * driftSemis;
+        const float d2 = mDrift2[ui] * driftSemis;
 
-        float o1 = mOsc1[ui].process(pi1, patch.osc1Shape, pw1);
+        // Unison detune per voice (+ analog drift)
+        const float pi1 = computePhaseInc(osc1BasePitch + d1, ui, nUni, patch.unisonDetune, 0.0f);
+        const float pi2 = computePhaseInc(osc2BasePitch + d2, ui, nUni, patch.unisonDetune, 0.0f);
+
+        // Osc2 first so it can frequency-modulate Osc1 (FM).
         float o2 = mOsc2[ui].process(pi2, patch.osc2Shape, pw2);
 
-        // Hard sync: osc2 slave to osc1
+        // FM: scale osc1's phase increment by osc2's output. Clamp well below
+        // Nyquist so it can never destabilise.
+        float pi1m = pi1;
+        if (patch.oscFM > 0.0001f)
+            pi1m = clamp(pi1 * (1.0f + o2 * patch.oscFM * 4.0f), 0.0f, 0.49f);
+
+        float o1 = mOsc1[ui].process(pi1m, patch.osc1Shape, pw1);
+
+        // Hard sync: osc2 slave to osc1 (reset on osc1 wrap)
         if (patch.osc2Sync) {
-            // Check if osc1 wrapped this sample (hard sync pulse)
-            // Simplified: detect phase wrap via phaseInc comparison
-            // A full implementation would use a blep correction at the sync point.
-            // Here we use a phase-reset approach: when osc1 phase < phaseInc (just wrapped)
-            if (mOsc1[ui].getPhase() < pi1)
+            if (mOsc1[ui].getPhase() < pi1m)
                 mOsc2[ui].syncReset(0.0f);
         }
+
+        // Ring modulation blends in the product of the two oscillators.
+        const float dry  = o1 * osc1Gain + o2 * osc2Gain;
+        const float ring = (o1 * o2) * (osc1Gain + osc2Gain);
+        const float sig  = dry * (1.0f - patch.oscRing) + ring * patch.oscRing;
 
         // Stereo pan per unison voice
         float panPos = 0.0f;
@@ -228,9 +260,21 @@ std::pair<float, float> Voice::process(const PatchParams& patch) noexcept {
         const float panL = std::cos(panAngle);
         const float panR = std::sin(panAngle);
 
-        const float sig = o1 * osc1Gain + o2 * osc2Gain;
         sumL += sig * panL * uniNorm;
         sumR += sig * panR * uniNorm;
+    }
+
+    // ── Sub-oscillator (mono) + noise layer ─────────────────────────────────────
+    if (patch.subLevel > 0.0001f) {
+        const float subPitch = osc1BasePitch + static_cast<float>(patch.subOctave) * 12.0f;
+        const float subPi    = midiNoteToHz(subPitch) / static_cast<float>(mSampleRate);
+        const float sub      = mSub.process(clamp(subPi, 0.0f, 0.49f), patch.subShape, 0.5f)
+                             * patch.subLevel;
+        sumL += sub; sumR += sub;
+    }
+    if (patch.noiseLevel > 0.0001f) {
+        sumL += mRng.bipolar() * patch.noiseLevel;
+        sumR += mRng.bipolar() * patch.noiseLevel;
     }
 
     // Osc panning additive (Osc1 and Osc2 individual pan settings)
@@ -240,10 +284,14 @@ std::pair<float, float> Voice::process(const PatchParams& patch) noexcept {
     // Key tracking: cutoff shifts with note (in octaves relative to A4=69)
     const float keyOctaves = (mCurrentNote - 69.0f) / 12.0f;
 
+    // Macro "movement": LFO1 wobble on cutoff, shared by both filters.
+    const float macroCutoffMod = lfo1Raw * patch.macroMotionCutoff;
+
     // Filter 1 cutoff modulation (additive in log/octave domain → multiply)
     const float f1CutoffOctaveMod = mod.filter1Cutoff
         + filterEnvVal * patch.filter1EnvAmt * 5.0f   // ±5 octaves at max
-        + keyOctaves   * patch.filter1KeyTrack * 2.0f; // ±2 oct key track
+        + keyOctaves   * patch.filter1KeyTrack * 2.0f // ±2 oct key track
+        + macroCutoffMod;
 
     const float f1Cutoff = clamp(
         patch.filter1Cutoff * std::exp2(f1CutoffOctaveMod),
@@ -258,7 +306,8 @@ std::pair<float, float> Voice::process(const PatchParams& patch) noexcept {
     // Filter 2
     const float f2CutoffOctaveMod = mod.filter2Cutoff
         + filterEnvVal * patch.filter2EnvAmt * 5.0f
-        + keyOctaves   * patch.filter2KeyTrack * 2.0f;
+        + keyOctaves   * patch.filter2KeyTrack * 2.0f
+        + macroCutoffMod;
 
     const float f2Cutoff = clamp(
         patch.filter2Cutoff * std::exp2(f2CutoffOctaveMod),

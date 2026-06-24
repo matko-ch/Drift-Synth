@@ -14,15 +14,11 @@ public:
 
 private:
     KnobComponent mAttack  { "A" };
+    KnobComponent mHold    { "H" };
     KnobComponent mDecay   { "D" };
     KnobComponent mSustain { "S" };
     KnobComponent mRelease { "R" };
-
-    // For ADSR visualiser
-    juce::Slider& getA() { return mAttack.getSlider(); }
-    juce::Slider& getD() { return mDecay.getSlider(); }
-    juce::Slider& getS() { return mSustain.getSlider(); }
-    juce::Slider& getR() { return mRelease.getSlider(); }
+    KnobComponent mCurve   { "CRV" };
 };
 
 } // namespace drift

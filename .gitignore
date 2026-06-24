@@ -1,0 +1,22 @@
+# Build output
+build/
+out/
+cmake-build-*/
+
+# CMake artifacts (when configured in-source)
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+CTestTestfile.cmake
+*.cmake.stamp
+Testing/
+
+# IDE / editor
+.vs/
+.idea/
+.vscode/
+*.user
+
+# OS
+.DS_Store
+Thumbs.db

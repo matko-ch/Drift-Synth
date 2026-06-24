@@ -38,9 +38,14 @@ void StereoDelay::processStereo(float& L, float& R) noexcept {
     mFBFilterL = mFBFilterL + mFBCoeff * (delayedL - mFBFilterL);
     mFBFilterR = mFBFilterR + mFBCoeff * (delayedR - mFBFilterR);
 
-    // Write input + feedback
-    mBufL[mWritePos] = L + mFBFilterL * mFeedback;
-    mBufR[mWritePos] = R + mFBFilterR * mFeedback;
+    // Write input + feedback. Sanitise so a single non-finite sample can never
+    // get trapped recirculating in the buffer (which would loop forever).
+    float wL = L + mFBFilterL * mFeedback;
+    float wR = R + mFBFilterR * mFeedback;
+    if (!std::isfinite(wL)) { wL = 0.0f; mFBFilterL = 0.0f; }
+    if (!std::isfinite(wR)) { wR = 0.0f; mFBFilterR = 0.0f; }
+    mBufL[mWritePos] = std::clamp(wL, -8.0f, 8.0f);
+    mBufR[mWritePos] = std::clamp(wR, -8.0f, 8.0f);
 
     // Mix wet/dry
     L = L + mMix * (delayedL - L);

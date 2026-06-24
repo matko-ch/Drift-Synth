@@ -6,6 +6,7 @@ add_executable(DriftTests
     TestEnvelope.cpp
     TestModMatrix.cpp
     TestVoice.cpp
+    TestEffectsStability.cpp
 
     # DSP implementation — compiled directly into the test binary (no JUCE plugin machinery)
     ${CMAKE_SOURCE_DIR}/Source/dsp/Oscillator.cpp
@@ -15,6 +16,8 @@ add_executable(DriftTests
     ${CMAKE_SOURCE_DIR}/Source/dsp/ModMatrix.cpp
     ${CMAKE_SOURCE_DIR}/Source/dsp/Voice.cpp
     ${CMAKE_SOURCE_DIR}/Source/dsp/VoiceManager.cpp
+    ${CMAKE_SOURCE_DIR}/Source/dsp/effects/PlateReverb.cpp
+    ${CMAKE_SOURCE_DIR}/Source/dsp/effects/StereoDelay.cpp
 )
 
 target_include_directories(DriftTests PRIVATE

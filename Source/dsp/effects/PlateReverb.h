@@ -35,30 +35,30 @@ private:
         float process(float x) noexcept;
     };
 
-    // Feedback delay line with one-pole LP damping
+    // Pure delay line (the orthonormal feedback matrix supplies all feedback,
+    // so the line itself must NOT recirculate — that double-feedback was the
+    // source of the runaway howl/NaN blow-up).
     struct DelayLine {
         std::array<float, kReverbAPFLen> buf{};
         int writePos = 0;
         int delayLen = 557;
-        float lpState = 0.0f;
-        float lpCoeff = 0.5f;
-        float gain    = 0.7f;
 
-        void reset() { buf.fill(0.0f); writePos = 0; lpState = 0.0f; }
-        float process(float x) noexcept;
+        void reset() { buf.fill(0.0f); writePos = 0; }
+        [[nodiscard]] float read() const noexcept;
+        void write(float x) noexcept;
     };
 
     std::array<AllPass,   kNumAP> mApL, mApR;
     std::array<DelayLine, kNumLP> mDelayLines;
 
-    float mFeedback = 0.7f;
+    float mDecay    = 0.7f;   // single feedback gain, strictly < 1 → always stable
+    float mLPCoeff  = 0.5f;   // per-line damping
+    float mLPState[kNumLP] = {};
     float mMix      = 0.5f;
     bool  mBypassed = false;
 
     float mSampleRate = 44100.0f;
 
-    // Hadamard mixing matrix for FDN (stateless — just indices)
-    float mFDNState[kNumLP] = {};
     static constexpr int kDelayLengths[kNumLP] = {
         557, 617, 697, 769, 883, 937, 1049, 1153
     };

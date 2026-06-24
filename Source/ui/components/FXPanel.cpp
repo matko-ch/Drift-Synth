@@ -53,9 +53,17 @@ void EffectSection::resized() {
 
 FXPanel::FXPanel(juce::AudioProcessorValueTreeState& apvts)
     : mDrive (apvts, "DRIVE",  ParamID::DRIVE_ON,
-              ParamID::DRIVE_AMOUNT, "Amount",
+              ParamID::DRIVE_AMOUNT, "Drive",
               ParamID::DRIVE_MIX,    "Mix",
-              ParamID::DRIVE_AMOUNT, "Gain")  // Gain mirrors Amount for visual symmetry
+              ParamID::DRIVE_AMOUNT, "Tone")
+    , mCrush (apvts, "LOFI",   ParamID::CRUSH_ON,
+              ParamID::CRUSH_BITS,   "Bits",
+              ParamID::CRUSH_AMT,    "Crush",
+              ParamID::CRUSH_MIX,    "Mix")
+    , mPhaser(apvts, "PHASER", ParamID::PHASER_ON,
+              ParamID::PHASER_RATE,  "Rate",
+              ParamID::PHASER_DEPTH, "Depth",
+              ParamID::PHASER_MIX,   "Mix")
     , mChorus(apvts, "CHORUS", ParamID::CHORUS_ON,
               ParamID::CHORUS_RATE,  "Rate",
               ParamID::CHORUS_DEPTH, "Depth",
@@ -68,21 +76,31 @@ FXPanel::FXPanel(juce::AudioProcessorValueTreeState& apvts)
               ParamID::REVERB_SIZE,  "Size",
               ParamID::REVERB_DAMP,  "Damp",
               ParamID::REVERB_MIX,   "Mix")
+    , mEQ    (apvts, "EQ",     ParamID::EQ_ON,
+              ParamID::EQ_LOW,       "Low",
+              ParamID::EQ_MID,       "Mid",
+              ParamID::EQ_HIGH,      "High")
 {
     setText("EFFECTS");
-    addAndMakeVisible(mDrive);
-    addAndMakeVisible(mChorus);
-    addAndMakeVisible(mDelay);
-    addAndMakeVisible(mReverb);
+    for (auto* s : { &mDrive, &mCrush, &mPhaser, &mChorus, &mDelay, &mReverb, &mEQ })
+        addAndMakeVisible(s);
 }
 
 void FXPanel::resized() {
-    const auto b = getLocalBounds().reduced(8, 18);
-    const int sectW = (b.getWidth() - 12) / 4;
-    mDrive .setBounds(b.getX() + 0*(sectW+4), b.getY(), sectW, b.getHeight());
-    mChorus.setBounds(b.getX() + 1*(sectW+4), b.getY(), sectW, b.getHeight());
-    mDelay .setBounds(b.getX() + 2*(sectW+4), b.getY(), sectW, b.getHeight());
-    mReverb.setBounds(b.getX() + 3*(sectW+4), b.getY(), sectW, b.getHeight());
+    auto b = getLocalBounds().reduced(8, 18);
+    EffectSection* order[7] = { &mDrive, &mCrush, &mPhaser, &mChorus, &mDelay, &mReverb, &mEQ };
+
+    // Two rows: 4 on top, 3 below.
+    const int gap = 4;
+    const int rowH = (b.getHeight() - gap) / 2;
+    const int topN = 4, botN = 3;
+    const int topW = (b.getWidth() - (topN - 1) * gap) / topN;
+    const int botW = (b.getWidth() - (botN - 1) * gap) / botN;
+
+    for (int i = 0; i < topN; ++i)
+        order[i]->setBounds(b.getX() + i * (topW + gap), b.getY(), topW, rowH);
+    for (int i = 0; i < botN; ++i)
+        order[topN + i]->setBounds(b.getX() + i * (botW + gap), b.getY() + rowH + gap, botW, rowH);
 }
 
 } // namespace drift

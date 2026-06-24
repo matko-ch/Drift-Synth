@@ -31,6 +31,14 @@ struct PatchParams {
 
     float    oscMix      = 0.5f;   // 0=all Osc1, 1=all Osc2
 
+    // ── Oscillator extras ──────────────────────────────────────────────────────
+    float    oscFM       = 0.0f;   // osc2 → osc1 frequency modulation index
+    float    oscRing     = 0.0f;   // ring-mod blend
+    float    noiseLevel  = 0.0f;   // white-noise layer
+    float    subLevel    = 0.0f;
+    OscShape subShape    = OscShape::Square;
+    int      subOctave   = -1;     // -2 or -1
+
     // ── Unison ────────────────────────────────────────────────────────────────
     int   unisonVoices  = 1;       // 1..kMaxUnisonVoices
     float unisonDetune  = 0.0f;    // semitones peak spread ÷ voice pairs
@@ -75,6 +83,13 @@ struct PatchParams {
     // ── Mod matrix ────────────────────────────────────────────────────────────
     std::array<ModSlot, kNumModSlots> modSlots{};
 
+    // ── Character ─────────────────────────────────────────────────────────────
+    float driftAmount    = 0.35f;  // analog pitch wander [0,1] — the "Drift" soul
+
+    // ── Macro modulation (driven by Orbit/Vibe "movement") ────────────────────
+    float macroMotionCutoff = 0.0f; // LFO1 → filter cutoff, in octaves
+    float macroVibrato      = 0.0f; // LFO1 → pitch, in semitones
+
     // ── Master ────────────────────────────────────────────────────────────────
     float masterPitch    = 0.0f;   // semitones (global transpose)
     float glideTime      = 0.0f;   // seconds; 0=off
@@ -117,6 +132,10 @@ private:
 
     // Per-unison-voice oscillators (pairs for stereo spread)
     std::array<Oscillator, kMaxUnisonVoices> mOsc1, mOsc2;
+    Oscillator mSub;   // monophonic sub-oscillator
+    // Per-unison-voice analog drift state (slow bounded random walk, [-1,1])
+    std::array<float, kMaxUnisonVoices> mDrift1{}, mDrift2{};
+    XorShift32 mRng;
     // Separate L/R filter instances so each channel has independent state
     Filter  mFilter1L, mFilter1R;
     Filter  mFilter2L, mFilter2R;
